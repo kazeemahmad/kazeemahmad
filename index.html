@@ -1,0 +1,1735 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101c22">
+  <title>Ultimate Snake - Offline Edition</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #101c22;
+      --panel: #18272d;
+      --panel-raised: #20343a;
+      --line: #395058;
+      --muted: #9eb4b6;
+      --paper: #eff3e8;
+      --lime: #d3f36b;
+      --coral: #ff765e;
+      --board: #10191d;
+      --board-alt: #142126;
+      --grid: #24353a;
+      --snake: #65dc64;
+      --cell: 25px;
+      font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background-color: var(--ink);
+      background-image: radial-gradient(ellipse at 86% 8%, #39451d66, transparent 34%),
+        linear-gradient(130deg, #101c22 8%, #19292c 58%, #222b24 100%);
+    }
+    button, select, input { font: inherit; }
+    button { color: inherit; }
+
+    .shell { max-width: 1440px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 56px) 36px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 27px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #d3f36b88; border-radius: 12px; color: var(--lime); background: #d3f36b12; }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand h1 { margin: 0; font-size: 19px; line-height: 1.1; letter-spacing: 0; font-weight: 700; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font: 11px "DM Mono", monospace; letter-spacing: 0; text-transform: uppercase; }
+    .local-tag { display: flex; align-items: center; gap: 8px; color: #b7c8bd; font: 11px "DM Mono", monospace; text-transform: uppercase; }
+    .local-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 12px #d3f36b99; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: 22px; align-items: start; }
+    .play-column { min-width: 0; }
+    .scorebar { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 4px 15px; }
+    .score-group { display: flex; align-items: baseline; gap: clamp(18px, 4vw, 48px); }
+    .metric { display: flex; align-items: baseline; gap: 9px; }
+    .main-game-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -7px 4px 10px; }
+    .main-game-actions .button { min-width: 116px; }
+    .main-music-controls { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.5fr); gap: 8px; margin: 0 4px 10px; }
+    .main-music-controls .custom-file { justify-content: center; }
+    .main-music-controls .music-file-row { min-width: 0; margin: 0; }
+    .metric-label { color: var(--muted); font: 10px "DM Mono", monospace; letter-spacing: 0; text-transform: uppercase; }
+    .metric-value { color: var(--paper); font: 500 21px "DM Mono", monospace; }
+    .metric:first-child .metric-value { color: var(--lime); font-size: 27px; }
+    .player-name { max-width: 150px; color: #d3ddd4; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .power-status { min-height: 22px; display: flex; align-items: center; gap: 8px; padding: 0 4px 10px; color: #bdc9c4; font: 10px "DM Mono", monospace; text-transform: uppercase; }
+    .power-status strong { color: #f7d96b; font-weight: 700; }
+    .power-status.boosting strong { color: #e6a8ff; }
+
+    .board-frame { position: relative; overflow: hidden; width: 100%; aspect-ratio: 5 / 3; border: 2px solid #52666a; border-radius: 10px; background: var(--board); box-shadow: 0 22px 65px #0007, inset 0 2px #ffffff2b, inset 0 -3px #0008, 0 0 0 1px #10191d; }
+    #game { display: block; width: 100%; height: 100%; }
+    .game-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; background: #0c1517bd; backdrop-filter: blur(3px); text-align: center; }
+    .game-overlay[hidden] { display: none; }
+    .overlay-content { width: min(100%, 390px); animation: arrive .25s ease-out both; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+    .eyebrow { color: var(--lime); font: 11px "DM Mono", monospace; text-transform: uppercase; letter-spacing: 0; }
+    .overlay-content h2 { margin: 10px 0 8px; color: #f5f6eb; font-size: clamp(27px, 4vw, 41px); line-height: 1; letter-spacing: 0; }
+    .overlay-content p { margin: 0 auto 22px; color: #bfceca; font-size: 13px; line-height: 1.6; }
+    .overlay-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; }
+
+    .controls-hint { display: flex; justify-content: space-between; gap: 16px; padding: 13px 3px 0; color: var(--muted); font: 10px "DM Mono", monospace; text-transform: uppercase; }
+    kbd { display: inline-block; min-width: 22px; padding: 3px 5px; border: 1px solid #53676b; border-radius: 4px; color: #e3e9dc; background: #26363a; font: inherit; text-align: center; }
+    .key-list { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .touch-controls { display: none; margin-top: 14px; padding: 14px 10px 8px; border: 1px solid #3d5055; border-radius: 10px; background: rgba(17, 26, 30, 0.7); }
+    .touch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 220px; margin: 0 auto; }
+    .touch-button { width: 100%; min-height: 52px; border: 1px solid #4d666a; border-radius: 10px; color: #edf1ea; background: linear-gradient(180deg, #23404b, #18272d); font-size: 18px; font-weight: 700; cursor: pointer; }
+    .touch-button:active { transform: translateY(1px); opacity: .9; }
+    .touch-button[data-direction="up"] { grid-column: 2; }
+    .touch-button[data-direction="left"] { grid-column: 1; grid-row: 2; }
+    .touch-button[data-direction="down"] { grid-column: 2; grid-row: 2; }
+    .touch-button[data-direction="right"] { grid-column: 3; grid-row: 2; }
+    .touch-button[data-direction="pause"] { grid-column: 2; grid-row: 3; }
+
+    .panel { overflow: hidden; border: 1px solid #3c5156; border-radius: 9px; background: #17262bdb; box-shadow: 0 16px 40px #0002; }
+    .panel-section { padding: 18px; border-bottom: 1px solid #34474b; }
+    .panel-section:last-child { border-bottom: 0; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 14px; color: #eef0e5; font-size: 13px; font-weight: 600; }
+    .section-number { color: #809699; font: 10px "DM Mono", monospace; }
+    .field { display: block; margin: 0 0 13px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { display: block; margin: 0 0 6px; color: #9eb4b6; font: 10px "DM Mono", monospace; text-transform: uppercase; }
+    .select, .text-input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid #40565b; border-radius: 5px; outline: 0; color: var(--paper); background: #101c21; font-size: 12px; }
+    .select:focus, .text-input:focus { border-color: var(--lime); box-shadow: 0 0 0 2px #d3f36b22; }
+    .mode-note { min-height: 30px; margin: 7px 0 0; color: #8fa4a6; font-size: 11px; line-height: 1.45; }
+    .button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid #536a6e; border-radius: 5px; color: #eaf0e7; background: #26383c; cursor: pointer; font-size: 12px; font-weight: 600; transition: background .15s, border-color .15s, transform .15s; }
+    .button:hover { border-color: #9bb9a3; background: #31484a; }
+    .button:active { transform: translateY(1px); }
+    .button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+    .button.primary { border-color: var(--lime); color: #172118; background: var(--lime); }
+    .button.primary:hover { border-color: #e2ffa0; background: #e2ffa0; }
+    .button.ghost { background: transparent; }
+    .button.full { width: 100%; }
+    .button svg { width: 14px; height: 14px; flex: 0 0 auto; }
+    .action-stack { display: grid; gap: 8px; }
+    .appearance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .appearance-grid .field { margin: 0; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; color: #c4d2cb; font-size: 12px; }
+    .toggle { position: relative; width: 38px; height: 21px; flex: 0 0 auto; }
+    .toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .toggle-track { position: absolute; inset: 0; border: 1px solid #53696d; border-radius: 20px; background: #101c21; cursor: pointer; transition: .18s; }
+    .toggle-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: #9eb4b6; transition: .18s; }
+    .toggle input:checked + .toggle-track { border-color: #d3f36b; background: #70883b; }
+    .toggle input:checked + .toggle-track::after { left: 20px; background: #f2ffc5; }
+    .toggle input:focus-visible + .toggle-track { outline: 2px solid var(--lime); outline-offset: 2px; }
+    .custom-file { position: relative; overflow: hidden; }
+    .custom-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .music-file-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .music-file-name { min-width: 0; flex: 1; overflow: hidden; color: #9eb4b6; font: 10px "DM Mono", monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .music-file-row .button { min-height: 32px; padding: 0 9px; font-size: 10px; }
+    .save-note { min-height: 14px; margin-top: 9px; color: #81989a; font: 10px "DM Mono", monospace; }
+    .footer-note { margin: 15px 3px 0; color: #829699; font: 10px "DM Mono", monospace; }
+
+    @media (max-width: 880px) {
+      .shell { max-width: 760px; }
+      .layout { grid-template-columns: 1fr; }
+      .panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel-section { border-right: 1px solid #34474b; }
+      .panel-section:nth-child(2n) { border-right: 0; }
+      .panel-section:nth-last-child(-n+2) { border-bottom: 0; }
+    }
+    @media (max-width: 560px) {
+      .shell { padding: 18px 12px 24px; }
+      .topbar { margin-bottom: 13px; }
+      .brand h1 { font-size: 16px; }
+      .brand-mark { width: 36px; height: 36px; }
+      .local-tag { font-size: 9px; }
+      .scorebar { min-height: 65px; padding-bottom: 10px; }
+      .main-game-actions { justify-content: stretch; margin: 0 0 10px; }
+      .main-game-actions .button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+      .main-music-controls { grid-template-columns: minmax(105px, 1fr) minmax(0, 1.4fr); margin: 0 0 10px; }
+      .metric { display: block; }
+      .metric-label { display: block; margin-bottom: 3px; font-size: 9px; }
+      .metric-value { font-size: 16px; }
+      .metric:first-child .metric-value { font-size: 21px; }
+      .player-name { max-width: 86px; font-size: 11px; }
+      .controls-hint { font-size: 9px; }
+      .panel { display: block; }
+      .panel-section, .panel-section:nth-child(2n) { border-right: 0; border-bottom: 1px solid #34474b; }
+      .panel-section:last-child { border-bottom: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 7h8a3 3 0 1 1-3 3v4a3 3 0 1 0 3 3h6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="5" cy="7" r="1.7" fill="currentColor"/><circle cx="19" cy="17" r="1.7" fill="currentColor"/></svg>
+        </div>
+        <div><h1>ULTIMATE SNAKE</h1><p>Offline arcade edition</p></div>
+      </div>
+      <div class="local-tag">Local play · no account needed</div>
+    </header>
+
+    <div class="layout">
+      <section class="play-column" aria-label="Snake game">
+        <div class="scorebar">
+          <div class="score-group">
+            <div class="metric"><span class="metric-label">Score</span><strong class="metric-value" id="score">000</strong></div>
+            <div class="metric"><span class="metric-label">Personal best</span><strong class="metric-value" id="best">000</strong></div>
+          </div>
+          <div class="player-name" id="player-display">PLAYER: GUEST</div>
+        </div>
+        <div class="main-game-actions" aria-label="Game actions">
+          <button class="button" id="pause-button" type="button" disabled>Pause game</button>
+          <button class="button" id="sound-button" type="button" aria-pressed="true">Sound: On</button>
+        </div>
+        <div class="main-music-controls" aria-label="Music controls">
+          <label class="button ghost custom-file">Choose your music<input id="custom-music-file" type="file" accept="audio/*"></label>
+          <div class="music-file-row"><span class="music-file-name" id="custom-music-name" role="status">Built-in game music</span><button class="button ghost" id="clear-custom-music" type="button" disabled>Use built-in</button></div>
+        </div>
+        <div class="power-status" id="power-status" role="status" aria-live="polite"><span id="power-status-text">Power fruit appears during play</span></div>
+        <div class="board-frame">
+          <canvas id="game" width="750" height="450" aria-label="Snake game board"></canvas>
+          <div class="game-overlay" id="overlay">
+            <div class="overlay-content">
+              <span class="eyebrow" id="overlay-eyebrow">A LITTLE ARCADE, ANYWHERE</span>
+              <h2 id="overlay-title">Ready to slither?</h2>
+              <p id="overlay-copy">Collect the glowing fruit. Keep moving, and don't run into yourself.</p>
+              <div class="overlay-actions" id="overlay-actions"></div>
+            </div>
+          </div>
+        </div>
+        <div class="controls-hint">
+          <div class="key-list"><span>Move</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>or arrows</span></div>
+          <div class="key-list"><kbd>Space</kbd><span>pause</span><kbd>Esc</kbd><span>pause / back</span></div>
+        </div>
+        <div class="touch-controls" aria-label="Touch controls">
+          <div class="touch-grid">
+            <button class="touch-button" type="button" data-direction="up" aria-label="Move up">↑</button>
+            <button class="touch-button" type="button" data-direction="left" aria-label="Move left">←</button>
+            <button class="touch-button" type="button" data-direction="down" aria-label="Move down">↓</button>
+            <button class="touch-button" type="button" data-direction="right" aria-label="Move right">→</button>
+            <button class="touch-button" type="button" data-direction="pause" aria-label="Pause game">||</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel" aria-label="Game settings">
+        <section class="panel-section">
+          <h2 class="section-heading">Game mode <span class="section-number">01</span></h2>
+          <label class="field"><span class="field-label">Difficulty</span>
+            <select class="select" id="mode-select" aria-label="Difficulty"></select>
+          </label>
+          <p class="mode-note" id="mode-note"></p>
+        </section>
+        <section class="panel-section">
+          <h2 class="section-heading">Snake &amp; world <span class="section-number">02</span></h2>
+          <div class="appearance-grid">
+            <label class="field"><span class="field-label">World</span><select class="select" id="theme-select" aria-label="World theme"></select></label>
+            <label class="field"><span class="field-label">Body</span><select class="select" id="skin-select" aria-label="Snake body color"></select></label>
+            <label class="field"><span class="field-label">Body material</span><select class="select" id="body-style-select" aria-label="Snake body material"></select></label>
+            <label class="field"><span class="field-label">Face</span><select class="select" id="face-select" aria-label="Snake face"></select></label>
+            <label class="field"><span class="field-label">Player</span><input class="text-input" id="player-input" maxlength="24" value="Guest" aria-label="Player name"></label>
+          </div>
+          <div class="toggle-row"><span>Rainbow snake</span><label class="toggle" aria-label="Rainbow snake"><input id="rgb-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
+          <div class="toggle-row"><span>Sound effects</span><label class="toggle" aria-label="Sound effects"><input id="sound-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
+          <div class="toggle-row"><span>Game music</span><label class="toggle" aria-label="Game music"><input id="music-toggle" type="checkbox" checked><span class="toggle-track"></span></label></div>
+        </section>
+        <section class="panel-section">
+          <h2 class="section-heading">Controls <span class="section-number">03</span></h2>
+          <div class="action-stack">
+            <button class="button primary full" id="start-button" type="button">Start game</button>
+            <button class="button full" id="restart-button" type="button">Restart run</button>
+            <label class="button ghost full custom-file">Load background image<input id="background-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          </div>
+          <div class="save-note" id="save-note" role="status">Settings and records save on this device.</div>
+        </section>
+      </aside>
+    </div>
+    <p class="footer-note">Real-time 3D arcade · your settings and records stay on this device</p>
+  </main>
+
+  <script type="module">
+    import * as THREE from "./vendor/three/three.module.js";
+
+    (() => {
+      "use strict";
+
+      const CELL = 25;
+      const GRID_W = 30;
+      const GRID_H = 18;
+      const WIDTH = GRID_W * CELL;
+      const HEIGHT = GRID_H * CELL;
+      const SAVE_KEY = "ultimate-snake-browser-v1";
+      const themes = [
+        ["Midnight", "#0a121e", "#122230"], ["Ocean", "#071c2b", "#0b3946"],
+        ["Forest", "#101e17", "#1c3624"], ["Sunset", "#2a1923", "#512638"],
+        ["Purple Haze", "#20152e", "#39234e"], ["Crimson", "#260f16", "#461920"],
+        ["Ice", "#12232b", "#24404a"], ["Desert", "#292215", "#463820"],
+        ["Neon City", "#111321", "#292344"], ["Emerald", "#09251f", "#104638"],
+        ["Rose", "#2a1924", "#4c2639"], ["Slate", "#181d22", "#2b3239"],
+        ["Golden", "#29220e", "#493913"], ["Arctic", "#102432", "#214756"],
+        ["Volcano", "#27150c", "#4b200e"], ["Lavender", "#211c2c", "#40344e"],
+        ["Toxic", "#15210c", "#2c420f"], ["Monochrome", "#111214", "#292a2d"],
+        ["Blue Steel", "#0d1d2b", "#1a354c"], ["Aurora", "#0b2025", "#173a40"]
+      ];
+      const skins = [
+        ["Classic Green", "#41dc64"], ["Ocean Blue", "#37a5ff"], ["Crimson", "#f54555"],
+        ["Golden", "#ffc32d"], ["Purple", "#af5fff"], ["Pink", "#ff69b4"],
+        ["Ice", "#9bf0ff"], ["Toxic", "#aaff28"], ["Orange", "#ff8728"],
+        ["Silver", "#cdd7e1"], ["White", "#f5f5f5"], ["Shadow", "#505a6e"]
+      ];
+      const faces = ["Classic", "Happy", "Cool", "Sleepy", "Angry", "Surprised", "Robot", "Wink", "Heart", "Ninja", "Alien", "Silly"];
+      const modes = [
+        { name: "Easy", start: 5, max: 8, wrap: true, obstacles: 0, note: "Relaxed pace · wrap-around edges · no obstacles" },
+        { name: "Medium", start: 8, max: 12, wrap: true, obstacles: 0, note: "Balanced pace · wrap-around edges · no obstacles" },
+        { name: "Hard", start: 11, max: 15, wrap: false, obstacles: 0, note: "Fast snake · walls are dangerous" },
+        { name: "Extreme", start: 14, max: 19, wrap: false, obstacles: 8, note: "Very fast · walls and obstacles are dangerous" },
+        { name: "Pro", start: 17, max: 24, wrap: false, obstacles: 16, note: "Maximum challenge · high speed · more obstacles" }
+      ];
+      const bodyStyles = ["Glossy Orb", "Dragon Scale", "Liquid Chrome", "Crystal", "Neon Pulse"];
+      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, sound: false, music: true, mode: 1, player: "Guest", highscores: {} };
+      let saved;
+      try { saved = { ...defaults, ...JSON.parse(localStorage.getItem(SAVE_KEY) || "{}") }; }
+      catch { saved = { ...defaults }; }
+      saved.theme = wrapIndex(saved.theme, themes.length);
+      saved.skin = wrapIndex(saved.skin, skins.length);
+      saved.face = wrapIndex(saved.face, faces.length);
+      saved.bodyStyle = wrapIndex(saved.bodyStyle, bodyStyles.length);
+      saved.mode = wrapIndex(saved.mode, modes.length);
+      if (!saved.highscores || typeof saved.highscores !== "object") saved.highscores = {};
+
+      const canvas = document.getElementById("game");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.35;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0x101c22, 38, 78);
+      const camera = new THREE.OrthographicCamera(-17, 17, 10.2, -10.2, 0.1, 100);
+      camera.position.set(0, 36, 16);
+      camera.lookAt(0, 0, 0);
+
+      const ambientLight = new THREE.HemisphereLight(0xdff4ee, 0x18202c, 2.15);
+      scene.add(ambientLight);
+      const keyLight = new THREE.DirectionalLight(0xfff0d1, 3.4);
+      keyLight.position.set(-11, 24, 13);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.camera.left = -21;
+      keyLight.shadow.camera.right = 21;
+      keyLight.shadow.camera.top = 21;
+      keyLight.shadow.camera.bottom = -21;
+      keyLight.shadow.bias = -0.00035;
+      scene.add(keyLight);
+      const rimLight = new THREE.DirectionalLight(0x72d9c7, 1.8);
+      rimLight.position.set(14, 12, -15);
+      scene.add(rimLight);
+
+      const boardGroup = new THREE.Group();
+      scene.add(boardGroup);
+      const boardPlatform = new THREE.Mesh(
+        new THREE.BoxGeometry(GRID_W + 0.65, 0.72, GRID_H + 0.65),
+        new THREE.MeshStandardMaterial({ color: 0x26373c, metalness: 0.62, roughness: 0.3 })
+      );
+      boardPlatform.position.y = -0.55;
+      boardPlatform.receiveShadow = true;
+      boardPlatform.castShadow = true;
+      boardGroup.add(boardPlatform);
+      const boardTopMaterial = new THREE.MeshStandardMaterial({ color: 0x10191d, roughness: 0.82, metalness: 0.08 });
+      const boardTop = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W, GRID_H), boardTopMaterial);
+      boardTop.rotation.x = -Math.PI / 2;
+      boardTop.position.y = -0.18;
+      boardTop.receiveShadow = true;
+      boardGroup.add(boardTop);
+      const backgroundMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.28, depthWrite: false });
+      const backgroundPlane = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W, GRID_H), backgroundMaterial);
+      backgroundPlane.rotation.x = -Math.PI / 2;
+      backgroundPlane.position.y = -0.13;
+      backgroundPlane.visible = false;
+      boardGroup.add(backgroundPlane);
+      const tileMaterial = new THREE.MeshStandardMaterial({ color: 0x25383d, roughness: 0.88, metalness: 0.04, transparent: true, opacity: 0.28 });
+      const tileInstances = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.98, 0.98), tileMaterial, GRID_W * GRID_H / 2);
+      tileInstances.rotation.x = -Math.PI / 2;
+      tileInstances.position.y = -0.165;
+      const tileMatrix = new THREE.Object3D();
+      let tileIndex = 0;
+      for (let gx = 0; gx < GRID_W; gx++) {
+        for (let gy = 0; gy < GRID_H; gy++) {
+          if ((gx + gy) % 2 !== 0) continue;
+          tileMatrix.position.set(gx - GRID_W / 2 + 0.5, GRID_H / 2 - gy - 0.5, 0);
+          tileMatrix.updateMatrix();
+          tileInstances.setMatrixAt(tileIndex++, tileMatrix.matrix);
+        }
+      }
+      boardGroup.add(tileInstances);
+      const gridPoints = [];
+      for (let x = 0; x <= GRID_W; x++) {
+        gridPoints.push(new THREE.Vector3(x - GRID_W / 2, -0.145, -GRID_H / 2));
+        gridPoints.push(new THREE.Vector3(x - GRID_W / 2, -0.145, GRID_H / 2));
+      }
+      for (let z = 0; z <= GRID_H; z++) {
+        gridPoints.push(new THREE.Vector3(-GRID_W / 2, -0.145, z - GRID_H / 2));
+        gridPoints.push(new THREE.Vector3(GRID_W / 2, -0.145, z - GRID_H / 2));
+      }
+      const gridGeometry = new THREE.BufferGeometry().setFromPoints(gridPoints);
+      const gridLines = new THREE.LineSegments(gridGeometry, new THREE.LineBasicMaterial({ color: 0x81969a, transparent: true, opacity: 0.17 }));
+      boardGroup.add(gridLines);
+      const boardEdge = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(GRID_W + 0.65, 0.72, GRID_H + 0.65)),
+        new THREE.LineBasicMaterial({ color: 0xa2c3bd, transparent: true, opacity: 0.6 })
+      );
+      boardEdge.position.copy(boardPlatform.position);
+      boardGroup.add(boardEdge);
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x111a1e, roughness: 1 }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.94;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const snakeGroup = new THREE.Group();
+      scene.add(snakeGroup);
+      let snakeMeshes = [];
+      let snakeLook = "";
+      const obstacleGroup = new THREE.Group();
+      scene.add(obstacleGroup);
+      let obstacleSignature = "";
+      const foodGroup = new THREE.Group();
+      scene.add(foodGroup);
+      let foodObject = null;
+      const powerFruitGroup = new THREE.Group();
+      scene.add(powerFruitGroup);
+      let powerFruitObject = null;
+      let powerFruitSignature = "";
+      const faceGroup = new THREE.Group();
+      scene.add(faceGroup);
+      let faceSignature = "";
+
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlay-title");
+      const overlayCopy = document.getElementById("overlay-copy");
+      const overlayEyebrow = document.getElementById("overlay-eyebrow");
+      const overlayActions = document.getElementById("overlay-actions");
+      const scoreNode = document.getElementById("score");
+      const bestNode = document.getElementById("best");
+      const playerInput = document.getElementById("player-input");
+      const playerDisplay = document.getElementById("player-display");
+      const modeSelect = document.getElementById("mode-select");
+      const themeSelect = document.getElementById("theme-select");
+      const skinSelect = document.getElementById("skin-select");
+      const faceSelect = document.getElementById("face-select");
+      const bodyStyleSelect = document.getElementById("body-style-select");
+      const rgbToggle = document.getElementById("rgb-toggle");
+      const soundToggle = document.getElementById("sound-toggle");
+      const musicToggle = document.getElementById("music-toggle");
+      const customMusicFileInput = document.getElementById("custom-music-file");
+      const customMusicName = document.getElementById("custom-music-name");
+      const clearCustomMusicButton = document.getElementById("clear-custom-music");
+      const modeNote = document.getElementById("mode-note");
+      const saveNote = document.getElementById("save-note");
+      const pauseButton = document.getElementById("pause-button");
+      const soundButton = document.getElementById("sound-button");
+      const customMusicAudio = new Audio();
+      customMusicAudio.loop = true;
+      customMusicAudio.volume = 0.42;
+      let customMusicUrl = "";
+      const powerStatus = document.getElementById("power-status");
+      const powerStatusText = document.getElementById("power-status-text");
+
+      fillOptions(modeSelect, modes.map(mode => mode.name));
+      fillOptions(themeSelect, themes.map(theme => theme[0]));
+      fillOptions(skinSelect, skins.map(skin => skin[0]));
+      fillOptions(faceSelect, faces);
+      fillOptions(bodyStyleSelect, bodyStyles);
+      modeSelect.value = String(saved.mode);
+      themeSelect.value = String(saved.theme);
+      skinSelect.value = String(saved.skin);
+      faceSelect.value = String(saved.face);
+      bodyStyleSelect.value = String(saved.bodyStyle);
+      rgbToggle.checked = Boolean(saved.rgb);
+      soundToggle.checked = Boolean(saved.sound);
+      musicToggle.checked = Boolean(saved.music);
+      playerInput.value = String(saved.player || "Guest").slice(0, 24);
+
+      let state = "ready";
+      let body = [];
+      let direction = [1, 0];
+      let queuedDirection = [1, 0];
+      let food = null;
+      let powerFruit = null;
+      let powerFruitLifetime = 0;
+      let powerFruitCooldown = 12;
+      let growthPending = 0;
+      const POWER_FRUIT_LIFETIME = 8;
+      const POWER_FRUIT_RESPAWN = 18;
+      const POWER_FRUIT_GROWTH = 5;
+      let obstacles = new Set();
+      let score = 0;
+      let speed = modes[saved.mode].start;
+      let moveAccumulator = 0;
+      let lastTime = 0;
+      let elapsed = 0;
+      let customBackground = null;
+
+      function wrapIndex(value, length) {
+        const index = Number.parseInt(value, 10);
+        return Number.isFinite(index) ? ((index % length) + length) % length : 0;
+      }
+
+      function fillOptions(select, values) {
+        values.forEach((value, index) => {
+          const option = document.createElement("option");
+          option.value = String(index);
+          option.textContent = value;
+          select.append(option);
+        });
+      }
+
+      let audioContext = null;
+      function initializeAudio() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        audioContext ??= new AudioContextClass();
+        if (audioContext.state === "suspended") void audioContext.resume();
+      }
+
+      function playSound(frequency, duration = 0.12, waveform = "sine") {
+        if (!soundToggle.checked) return;
+        initializeAudio();
+        if (!audioContext || audioContext.state !== "running") return;
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const volume = audioContext.createGain();
+        oscillator.type = waveform;
+        oscillator.frequency.setValueAtTime(frequency, now);
+        volume.gain.setValueAtTime(0.0001, now);
+        volume.gain.exponentialRampToValueAtTime(0.07, now + 0.012);
+        volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        oscillator.connect(volume);
+        volume.connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+      }
+
+      let musicTimer = null;
+      let musicStep = 0;
+      const musicLead = [69, 72, 76, 79, 76, 72, 76, 74, 67, 71, 74, 76, 74, 71, 69, 67];
+      const musicChords = [[45, 48, 52], [41, 45, 48], [48, 52, 55], [43, 47, 50]];
+
+      function midiFrequency(note) {
+        return 440 * Math.pow(2, (note - 69) / 12);
+      }
+
+      function playMusicNote(frequency, duration, level, waveform = "sine", attack = 0.04) {
+        if (!audioContext || audioContext.state !== "running") return;
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const volume = audioContext.createGain();
+        oscillator.type = waveform;
+        oscillator.frequency.setValueAtTime(frequency, now);
+        volume.gain.setValueAtTime(0.0001, now);
+        volume.gain.exponentialRampToValueAtTime(level, now + attack);
+        volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        oscillator.connect(volume);
+        volume.connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+      }
+
+      function stopMusic() {
+        if (musicTimer !== null) window.clearInterval(musicTimer);
+        musicTimer = null;
+      }
+
+      function startMusic() {
+        if (!musicToggle.checked || state !== "playing" || musicTimer !== null) return;
+        initializeAudio();
+        const playStep = () => {
+          if (!musicToggle.checked || state !== "playing") {
+            stopMusic();
+            return;
+          }
+          const step = musicStep % musicLead.length;
+          playMusicNote(midiFrequency(musicLead[step]), 0.22, 0.012, "triangle", 0.015);
+          if (step % 4 === 0) {
+            const chord = musicChords[Math.floor(step / 4)];
+            chord.forEach(note => playMusicNote(midiFrequency(note + 12), 1.08, 0.0025, "sine", 0.16));
+            playMusicNote(midiFrequency(chord[0]), 0.56, 0.012, "sine", 0.035);
+          }
+          if (step === 0 || step === 8) playMusicNote(55, 0.1, 0.004, "sine", 0.008);
+          musicStep = (musicStep + 1) % musicLead.length;
+        };
+        playStep();
+        musicTimer = window.setInterval(playStep, 300);
+      }
+
+      function syncMusic() {
+        if (state !== "playing" || !musicToggle.checked) {
+          stopMusic();
+          customMusicAudio.pause();
+          return;
+        }
+        if (customMusicAudio.src) {
+          stopMusic();
+          if (customMusicAudio.paused) {
+            const playback = customMusicAudio.play();
+            if (playback) playback.catch(() => {
+              saveNote.textContent = "Tap the game to allow your selected music to play.";
+            });
+          }
+          return;
+        }
+        customMusicAudio.pause();
+        startMusic();
+      }
+
+      function persist() {
+        saved = {
+          ...saved,
+          theme: Number(themeSelect.value), skin: Number(skinSelect.value),
+          face: Number(faceSelect.value), bodyStyle: Number(bodyStyleSelect.value), rgb: rgbToggle.checked, sound: soundToggle.checked, music: musicToggle.checked,
+          mode: Number(modeSelect.value), player: playerName()
+        };
+        try {
+          localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
+          saveNote.textContent = "Settings and records save on this device.";
+        } catch {
+          saveNote.textContent = "Browser storage is full; this run will not be saved.";
+        }
+        updateHud();
+        refreshAppearance();
+        draw();
+      }
+
+      function refreshAppearance() {
+        const look = `${Number(skinSelect.value)}:${Number(bodyStyleSelect.value)}`;
+        if (snakeLook !== look) rebuildSnakeMeshes(look);
+        syncFace();
+        updateSnakeMeshes();
+      }
+
+      function playerName() {
+        return playerInput.value.trim().slice(0, 24) || "Guest";
+      }
+
+      function updateHud() {
+        const best = Number(saved.highscores[playerName()] || 0);
+        scoreNode.textContent = String(score).padStart(3, "0");
+        bestNode.textContent = String(best).padStart(3, "0");
+        playerDisplay.textContent = `PLAYER: ${playerName().toUpperCase()}`;
+        modeNote.textContent = modes[Number(modeSelect.value)].note;
+        syncSoundButton();
+        powerStatus.classList.remove("boosting");
+        if (powerFruit) {
+          powerStatusText.innerHTML = `POWER FRUIT EXPIRES IN · <strong>${Math.ceil(powerFruitLifetime)}s</strong>`;
+        } else if (state === "playing") {
+          powerStatusText.innerHTML = `NEXT POWER FRUIT IN · <strong>${Math.ceil(powerFruitCooldown)}s</strong>`;
+        } else {
+          powerStatusText.textContent = "Power fruit appears during play";
+        }
+      }
+
+      function cellKey(cell) { return `${cell[0]},${cell[1]}`; }
+
+      function generateObstacles() {
+        const count = modes[Number(modeSelect.value)].obstacles;
+        const safe = new Set(body.map(cellKey));
+        const midX = Math.floor(GRID_W / 2);
+        const midY = Math.floor(GRID_H / 2);
+        for (let x = midX - 4; x <= midX + 4; x++) {
+          for (let y = midY - 3; y <= midY + 3; y++) safe.add(cellKey([x, y]));
+        }
+        const candidates = [];
+        for (let x = 0; x < GRID_W; x++) {
+          for (let y = 0; y < GRID_H; y++) {
+            if (!safe.has(cellKey([x, y]))) candidates.push([x, y]);
+          }
+        }
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+        obstacles = new Set(candidates.slice(0, count).map(cellKey));
+      }
+
+      function placeFood() {
+        const empty = [];
+        for (let x = 0; x < GRID_W; x++) {
+          for (let y = 0; y < GRID_H; y++) {
+            const key = cellKey([x, y]);
+            if (!obstacles.has(key) && !body.some(segment => segment[0] === x && segment[1] === y)) empty.push([x, y]);
+          }
+        }
+        food = empty.length ? empty[Math.floor(Math.random() * empty.length)] : null;
+      }
+
+      function placePowerFruit() {
+        const occupied = new Set([...body.map(cellKey), ...obstacles]);
+        if (food) occupied.add(cellKey(food));
+        const empty = [];
+        for (let x = 0; x < GRID_W; x++) {
+          for (let y = 0; y < GRID_H; y++) {
+            if (!occupied.has(cellKey([x, y]))) empty.push([x, y]);
+          }
+        }
+        if (!empty.length) {
+          powerFruitCooldown = 3;
+          return;
+        }
+        powerFruit = empty[Math.floor(Math.random() * empty.length)];
+        powerFruitLifetime = POWER_FRUIT_LIFETIME;
+        powerFruitSignature = "";
+      }
+
+      function resetGame(nextState = "playing") {
+        const x = Math.floor(GRID_W / 2);
+        const y = Math.floor(GRID_H / 2);
+        body = Array.from({ length: 5 }, (_, i) => [x - i, y]);
+        direction = [1, 0];
+        queuedDirection = [1, 0];
+        score = 0;
+        speed = modes[Number(modeSelect.value)].start;
+        powerFruit = null;
+        powerFruitLifetime = 0;
+        powerFruitCooldown = 12;
+        growthPending = 0;
+        moveAccumulator = 0;
+        generateObstacles();
+        placeFood();
+        state = nextState;
+        setOverlay(nextState);
+        updateHud();
+        draw();
+      }
+
+      function setOverlay(nextState) {
+        syncPauseControl();
+        syncMusic();
+        overlayActions.replaceChildren();
+        if (nextState === "playing") {
+          overlay.hidden = true;
+          return;
+        }
+        overlay.hidden = false;
+        let title;
+        let copy;
+        let eyebrow;
+        let actions;
+        if (nextState === "ready") {
+          eyebrow = "A LITTLE ARCADE, ANYWHERE";
+          title = "Ready to slither?";
+          copy = "Collect the glowing fruit. Keep moving, and don't run into yourself.";
+          actions = [["Start game", "primary", startGame], ["New layout", "ghost", () => resetGame("ready")]];
+        } else if (nextState === "paused") {
+          eyebrow = "TAKE YOUR TIME";
+          title = "Paused";
+          copy = `Score ${score} · ${modes[Number(modeSelect.value)].name} mode`;
+          actions = [["Resume", "primary", () => { state = "playing"; setOverlay(state); }], ["Restart", "ghost", () => resetGame("playing")]];
+        } else {
+          eyebrow = "RUN COMPLETE";
+          title = "Game over";
+          copy = `You scored ${score}. ${food === null ? "The board is full. Nicely done." : "Ready for another run?"}`;
+          actions = [["Play again", "primary", () => resetGame("playing")], ["New layout", "ghost", () => resetGame("ready")]];
+        }
+        overlayEyebrow.textContent = eyebrow;
+        overlayTitle.textContent = title;
+        overlayCopy.textContent = copy;
+        actions.forEach(([label, kind, handler]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `button ${kind}`;
+          button.textContent = label;
+          button.addEventListener("click", handler);
+          overlayActions.append(button);
+        });
+      }
+
+      function startGame() {
+        if (soundToggle.checked || musicToggle.checked) initializeAudio();
+        if (state === "ready" || state === "over") resetGame("playing");
+        else { state = "playing"; setOverlay(state); }
+      }
+
+      function syncPauseControl() {
+        const paused = state === "paused";
+        const canPause = paused || state === "playing";
+        pauseButton.textContent = paused ? "Resume game" : "Pause game";
+        pauseButton.disabled = !canPause;
+        pauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
+        const touchPauseButton = document.querySelector('.touch-button[data-direction="pause"]');
+        if (touchPauseButton) {
+          touchPauseButton.textContent = paused ? "▶" : "Ⅱ";
+          touchPauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
+        }
+      }
+
+      function syncSoundButton() {
+        const enabled = soundToggle.checked || musicToggle.checked;
+        soundButton.textContent = enabled ? "Sound: On" : "Sound: Off";
+        soundButton.setAttribute("aria-pressed", String(enabled));
+        soundButton.setAttribute("aria-label", enabled ? "Turn sound off" : "Turn sound on");
+      }
+
+      function toggleSound() {
+        const enabled = !(soundToggle.checked || musicToggle.checked);
+        soundToggle.checked = enabled;
+        musicToggle.checked = enabled;
+        if (enabled) initializeAudio();
+        persist();
+        syncMusic();
+        updateHud();
+      }
+
+      function togglePause() {
+        if (state === "playing") state = "paused";
+        else if (state === "paused") state = "playing";
+        else return;
+        playSound(state === "paused" ? 320 : 520, 0.1);
+        setOverlay(state);
+      }
+
+      function finishGame() {
+        state = "over";
+        playSound(170, 0.28, "triangle");
+        const name = playerName();
+        if (score > Number(saved.highscores[name] || 0)) {
+          saved.highscores[name] = score;
+          persist();
+        }
+        updateHud();
+        setOverlay(state);
+      }
+
+      function queueDirection(next) {
+        if (next[0] === -direction[0] && next[1] === -direction[1]) return;
+        queuedDirection = next;
+      }
+
+      function moveSnake() {
+        direction = queuedDirection;
+        let next = [body[0][0] + direction[0], body[0][1] + direction[1]];
+        const mode = modes[Number(modeSelect.value)];
+        if (mode.wrap) next = [(next[0] + GRID_W) % GRID_W, (next[1] + GRID_H) % GRID_H];
+        else if (next[0] < 0 || next[0] >= GRID_W || next[1] < 0 || next[1] >= GRID_H) {
+          finishGame();
+          return;
+        }
+        const eating = food && next[0] === food[0] && next[1] === food[1];
+        const eatingPowerFruit = powerFruit && next[0] === powerFruit[0] && next[1] === powerFruit[1];
+        const collisionBody = eating || eatingPowerFruit || growthPending > 0 ? body : body.slice(0, -1);
+        if (collisionBody.some(segment => segment[0] === next[0] && segment[1] === next[1]) || obstacles.has(cellKey(next))) {
+          finishGame();
+          return;
+        }
+        body.unshift(next);
+        if (eating || eatingPowerFruit) {
+          if (eating) {
+            playSound(620, 0.1);
+            score += 10;
+            speed = Math.min(mode.max, mode.start + Math.floor(score / 70));
+            placeFood();
+            updateHud();
+            if (!food) finishGame();
+          }
+          if (eatingPowerFruit) {
+            playSound(920, 0.2, "triangle");
+            powerFruit = null;
+            powerFruitLifetime = 0;
+            powerFruitCooldown = POWER_FRUIT_RESPAWN;
+            growthPending += POWER_FRUIT_GROWTH - 1;
+            powerFruitSignature = "";
+            updateHud();
+          }
+        } else if (growthPending > 0) {
+          growthPending -= 1;
+        } else body.pop();
+      }
+
+      function roundedRect(x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, width, height, radius);
+      }
+
+      function drawBoard() {
+        const [name, base, alternate] = themes[Number(themeSelect.value)];
+        void name;
+        const backdrop = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+        backdrop.addColorStop(0, alternate);
+        backdrop.addColorStop(0.52, base);
+        backdrop.addColorStop(1, "#05090d");
+        ctx.fillStyle = backdrop;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        for (let y = 0; y < GRID_H; y++) {
+          for (let x = 0; x < GRID_W; x++) {
+            if ((x + y) % 2 === 0) {
+              ctx.globalAlpha = 0.13;
+              ctx.fillStyle = alternate;
+              ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#ffffff0d";
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= GRID_W; x++) {
+          ctx.beginPath(); ctx.moveTo(x * CELL + 0.5, 0); ctx.lineTo(x * CELL + 0.5, HEIGHT); ctx.stroke();
+        }
+        for (let y = 0; y <= GRID_H; y++) {
+          ctx.beginPath(); ctx.moveTo(0, y * CELL + 0.5); ctx.lineTo(WIDTH, y * CELL + 0.5); ctx.stroke();
+        }
+        const light = ctx.createLinearGradient(0, 0, 0, 18);
+        light.addColorStop(0, "#ffffff1b");
+        light.addColorStop(1, "#ffffff00");
+        ctx.fillStyle = light;
+        ctx.fillRect(0, 0, WIDTH, 18);
+        const vignette = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, 90, WIDTH / 2, HEIGHT / 2, 470);
+        vignette.addColorStop(0, "#00000000");
+        vignette.addColorStop(1, "#00000050");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.strokeStyle = "#d8f4e329";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, WIDTH - 2, HEIGHT - 2);
+      }
+
+      function drawSphere(x, y, radius, color) {
+        ctx.shadowColor = "#0009";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 3;
+        ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+        ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        const highlight = ctx.createRadialGradient(x - radius * 0.34, y - radius * 0.4, 1, x, y, radius);
+        highlight.addColorStop(0, "#ffffff78");
+        highlight.addColorStop(0.35, "#ffffff0e");
+        highlight.addColorStop(1, "#00000012");
+        ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fillStyle = highlight; ctx.fill();
+      }
+
+      function drawObstacles() {
+        obstacles.forEach(key => {
+          const [gx, gy] = key.split(",").map(Number);
+          const x = gx * CELL + 3;
+          const y = gy * CELL + 3;
+          ctx.fillStyle = "#0008";
+          roundedRect(x + 2, y + 3, CELL - 6, CELL - 6, 5); ctx.fill();
+          ctx.fillStyle = "#69747a";
+          roundedRect(x, y, CELL - 6, CELL - 6, 5); ctx.fill();
+          const bevel = ctx.createLinearGradient(x, y, x + CELL - 6, y + CELL - 6);
+          bevel.addColorStop(0, "#ffffff40");
+          bevel.addColorStop(0.35, "#ffffff00");
+          bevel.addColorStop(1, "#111923aa");
+          roundedRect(x, y, CELL - 6, CELL - 6, 5); ctx.fillStyle = bevel; ctx.fill();
+          ctx.fillStyle = "#b5c1bf";
+          roundedRect(x + 2, y + 2, CELL - 10, 4, 3); ctx.fill();
+          ctx.strokeStyle = "#e4f0e855";
+          ctx.lineWidth = 1;
+          roundedRect(x + 0.5, y + 0.5, CELL - 7, CELL - 7, 5); ctx.stroke();
+        });
+      }
+
+      function drawSegment(x, y, radius, color, index) {
+        const style = Number(bodyStyleSelect.value);
+        if (style === 0) {
+          drawSphere(x, y, radius, color);
+          return;
+        }
+
+        ctx.save();
+        ctx.shadowColor = style === 4 ? color : "#000b";
+        ctx.shadowBlur = style === 4 ? 15 : 5;
+        ctx.shadowOffsetY = 3;
+        ctx.beginPath();
+        if (style === 3) {
+          ctx.moveTo(x, y - radius);
+          ctx.lineTo(x + radius * 0.86, y - radius * 0.36);
+          ctx.lineTo(x + radius * 0.7, y + radius * 0.62);
+          ctx.lineTo(x, y + radius);
+          ctx.lineTo(x - radius * 0.7, y + radius * 0.62);
+          ctx.lineTo(x - radius * 0.86, y - radius * 0.36);
+          ctx.closePath();
+        } else {
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+        }
+        let material;
+        if (style === 1) {
+          material = ctx.createRadialGradient(x - radius * 0.4, y - radius * 0.55, 1, x, y, radius * 1.4);
+          material.addColorStop(0, "#ffffffb0");
+          material.addColorStop(0.2, color);
+          material.addColorStop(0.72, color);
+          material.addColorStop(1, "#07110edb");
+        } else if (style === 2) {
+          material = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+          material.addColorStop(0, "#f5fffacc");
+          material.addColorStop(0.2, color);
+          material.addColorStop(0.42, "#f4fff8");
+          material.addColorStop(0.58, color);
+          material.addColorStop(0.8, "#26343b");
+          material.addColorStop(1, "#ffffffcc");
+        } else if (style === 3) {
+          material = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+          material.addColorStop(0, "#ffffff");
+          material.addColorStop(0.28, color);
+          material.addColorStop(0.7, color);
+          material.addColorStop(1, "#101821");
+        } else {
+          material = ctx.createRadialGradient(x - radius * 0.35, y - radius * 0.42, 1, x, y, radius * 1.25);
+          material.addColorStop(0, "#ffffff");
+          material.addColorStop(0.25, color);
+          material.addColorStop(0.75, color);
+          material.addColorStop(1, "#10131c");
+        }
+        ctx.fillStyle = material;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        if (style === 1) {
+          ctx.save();
+          ctx.beginPath(); ctx.arc(x, y, radius - 1, 0, Math.PI * 2); ctx.clip();
+          ctx.strokeStyle = "#ecfff768";
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.arc(x, y + radius * 0.16, radius * 0.62, Math.PI * 1.08, Math.PI * 1.92);
+          ctx.stroke();
+          ctx.restore();
+        } else if (style === 2) {
+          ctx.strokeStyle = "#ffffffa8";
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(x - 1, y - 1, radius * 0.72, Math.PI * 1.1, Math.PI * 1.8); ctx.stroke();
+        } else if (style === 3) {
+          ctx.strokeStyle = "#ffffffa0";
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x, y - radius + 2); ctx.lineTo(x, y + radius - 2); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x - radius * 0.72, y - radius * 0.36); ctx.lineTo(x, y + radius * 0.1); ctx.lineTo(x + radius * 0.72, y - radius * 0.36); ctx.stroke();
+        } else if (style === 4) {
+          ctx.strokeStyle = "#ffffffd9";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(x, y, radius - 2, Math.PI * 1.12, Math.PI * 1.84); ctx.stroke();
+        }
+        if (index === 0) {
+          ctx.strokeStyle = "#ffffff75";
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(x, y, radius - 0.75, Math.PI * 1.1, Math.PI * 1.8); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawSnake() {
+        const base = skins[Number(skinSelect.value)][1];
+        for (let i = body.length - 1; i >= 0; i--) {
+          const [gx, gy] = body[i];
+          let color = base;
+          if (rgbToggle.checked) {
+            const hue = (elapsed * 90 + i * 13) % 360;
+            color = `hsl(${hue} 80% 58%)`;
+          }
+          drawSegment(gx * CELL + CELL / 2, gy * CELL + CELL / 2, CELL / 2 - 1, color, i);
+        }
+        if (body.length) drawFace(body[0][0] * CELL + CELL / 2, body[0][1] * CELL + CELL / 2);
+      }
+
+      function drawFace(x, y) {
+        const face = faces[Number(faceSelect.value)];
+        const dx = direction[0];
+        const dy = direction[1];
+        const cx = x + dx * 2.1;
+        const cy = y + dy * 2.1;
+        const left = [cx - 3.2, cy - 2.4];
+        const right = [cx + 3.2, cy - 2.4];
+        ctx.fillStyle = "#172125";
+        ctx.strokeStyle = "#172125";
+        ctx.lineWidth = 2;
+        if (face === "Ninja") {
+          ctx.fillStyle = "#1b2022"; ctx.fillRect(x - 8, y - 2, 16, 5);
+          ctx.fillStyle = "#f5f5ed";
+          [left, right].forEach(point => { ctx.beginPath(); ctx.arc(point[0], point[1], 2, 0, Math.PI * 2); ctx.fill(); });
+          return;
+        }
+        if (face === "Sleepy" || face === "Wink") {
+          ctx.beginPath(); ctx.moveTo(left[0] - 2, left[1]); ctx.lineTo(left[0] + 2, left[1]); ctx.stroke();
+        } else {
+          ctx.beginPath(); ctx.arc(left[0], left[1], face === "Surprised" ? 2 : 1.6, 0, Math.PI * 2); ctx.fill();
+        }
+        if (face === "Wink" || face === "Sleepy") {
+          ctx.beginPath(); ctx.moveTo(right[0] - 2, right[1]); ctx.lineTo(right[0] + 2, right[1]); ctx.stroke();
+        } else {
+          ctx.beginPath(); ctx.arc(right[0], right[1], face === "Surprised" ? 2 : 1.6, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.beginPath();
+        if (face === "Happy") {
+          ctx.arc(x, y + 2, 4, 0.15, Math.PI - 0.15);
+          ctx.stroke();
+        } else if (face === "Heart") {
+          ctx.fillStyle = "#ff527a"; ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.fillText("♥", x, y + 6);
+        } else if (face === "Surprised") {
+          ctx.arc(x, y + 4, 1.6, 0, Math.PI * 2); ctx.stroke();
+        } else if (face === "Robot") {
+          ctx.moveTo(x - 3, y + 4); ctx.lineTo(x + 3, y + 4); ctx.stroke();
+        } else if (face === "Angry") {
+          ctx.moveTo(left[0] - 3, left[1] - 3); ctx.lineTo(left[0] + 2, left[1] - 1);
+          ctx.moveTo(right[0] - 2, right[1] - 1); ctx.lineTo(right[0] + 3, right[1] - 3); ctx.stroke();
+        } else if (face === "Silly") {
+          ctx.fillStyle = "#ff728d"; ctx.beginPath(); ctx.ellipse(x, y + 4, 2, 3, 0, 0, Math.PI * 2); ctx.fill();
+        } else if (face === "Alien") {
+          ctx.fillStyle = "#aaff76";
+          [left, right].forEach(point => { ctx.beginPath(); ctx.ellipse(point[0], point[1], 2.3, 3, 0, 0, Math.PI * 2); ctx.fill(); });
+        } else if (face === "Cool") {
+          ctx.strokeStyle = "#172125"; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.moveTo(x - 7, y - 3); ctx.lineTo(x + 7, y - 3); ctx.stroke();
+        }
+      }
+
+      function drawFood() {
+        if (!food) return;
+        const x = food[0] * CELL + CELL / 2;
+        const y = food[1] * CELL + CELL / 2;
+        const pulse = 1 + Math.sin(elapsed * 5) * 0.09;
+        const radius = 8.5 * pulse;
+        ctx.save();
+        ctx.shadowColor = "#ff5949";
+        ctx.shadowBlur = 19 + Math.sin(elapsed * 5) * 6;
+        ctx.shadowOffsetY = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y - radius * 0.62);
+        ctx.bezierCurveTo(x + radius * 0.45, y - radius * 1.08, x + radius * 1.18, y - radius * 0.45, x + radius * 0.88, y + radius * 0.33);
+        ctx.bezierCurveTo(x + radius * 0.68, y + radius * 1.04, x + radius * 0.2, y + radius * 1.02, x, y + radius * 0.8);
+        ctx.bezierCurveTo(x - radius * 0.25, y + radius * 1.06, x - radius * 0.79, y + radius * 0.89, x - radius * 0.96, y + radius * 0.27);
+        ctx.bezierCurveTo(x - radius * 1.2, y - radius * 0.48, x - radius * 0.42, y - radius * 1.02, x, y - radius * 0.62);
+        const fruit = ctx.createRadialGradient(x - radius * 0.38, y - radius * 0.42, 1, x + radius * 0.14, y + radius * 0.1, radius * 1.35);
+        fruit.addColorStop(0, "#fff0bd");
+        fruit.addColorStop(0.12, "#ffb17a");
+        fruit.addColorStop(0.36, "#ff6655");
+        fruit.addColorStop(0.76, "#d82635");
+        fruit.addColorStop(1, "#701c32");
+        ctx.fillStyle = fruit;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#ffcf9270";
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(x - radius * 0.34, y - radius * 0.25, radius * 0.13, radius * 0.27, -0.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff9d6d9"; ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y - radius * 0.65); ctx.quadraticCurveTo(x - 1, y - radius * 1.18, x + 1, y - radius * 1.25);
+        ctx.strokeStyle = "#62412a"; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(x + radius * 0.33, y - radius * 0.92, radius * 0.32, radius * 0.14, -0.45, 0, Math.PI * 2);
+        const leaf = ctx.createLinearGradient(x, y - radius, x + radius, y - radius * 0.7);
+        leaf.addColorStop(0, "#d1f58a"); leaf.addColorStop(1, "#438d46");
+        ctx.fillStyle = leaf; ctx.fill();
+        ctx.restore();
+      }
+
+      function draw() {
+        const theme = themes[Number(themeSelect.value)];
+        const themeKey = Number(themeSelect.value);
+        if (draw.activeTheme !== themeKey) {
+          const base = new THREE.Color(theme[1]);
+          scene.background = base;
+          scene.fog.color.copy(base);
+          boardTopMaterial.color.set(theme[1]);
+          tileMaterial.color.set(theme[2]);
+          draw.activeTheme = themeKey;
+        }
+
+        const look = `${Number(skinSelect.value)}:${Number(bodyStyleSelect.value)}`;
+        if (snakeLook !== look) rebuildSnakeMeshes(look);
+        syncObstacles();
+        syncFood();
+        syncPowerFruit();
+        syncFace();
+        updateSnakeMeshes();
+        if (foodObject) {
+          foodObject.rotation.y = elapsed * 0.7;
+          foodObject.position.y = -0.02 + Math.sin(elapsed * 3.2) * 0.06;
+        }
+        if (powerFruitObject) {
+          powerFruitObject.rotation.y = elapsed * 1.6;
+          powerFruitObject.rotation.x = Math.sin(elapsed * 2.2) * 0.15;
+          powerFruitObject.position.y = 0.08 + Math.sin(elapsed * 4.5) * 0.11;
+        }
+        renderer.render(scene, camera);
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+        const width = rect.width || WIDTH;
+        const height = rect.height || HEIGHT;
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setSize(width, height, false);
+        const viewWidth = GRID_W + 4;
+        const viewHeight = viewWidth / (width / height);
+        camera.left = -viewWidth / 2;
+        camera.right = viewWidth / 2;
+        camera.top = viewHeight / 2;
+        camera.bottom = -viewHeight / 2;
+        camera.updateProjectionMatrix();
+        draw();
+      }
+
+      function disposeGroup(group) {
+        group.traverse(object => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            const materials = Array.isArray(object.material) ? object.material : [object.material];
+            materials.forEach(material => material.dispose());
+          }
+        });
+        group.clear();
+      }
+
+      function makeSegment(color, style, isHead = false) {
+        const group = new THREE.Group();
+        const crystal = style === 3;
+        let geometry;
+        if (style === 1) {
+          geometry = new THREE.CapsuleGeometry(0.18, 0.78, 6, 12);
+        } else if (style === 2) {
+          geometry = new THREE.CylinderGeometry(0.18, 0.26, 0.9, 10, 1, false);
+        } else if (crystal) {
+          geometry = new THREE.BoxGeometry(0.42, 0.42, 0.52);
+        } else {
+          geometry = new THREE.BoxGeometry(0.48, 0.34, 0.52);
+        }
+
+        const material = new THREE.MeshPhysicalMaterial({
+          color,
+          metalness: style === 2 ? 0.9 : crystal ? 0.6 : style === 1 ? 0.14 : 0.08,
+          roughness: style === 2 ? 0.12 : style === 1 ? 0.24 : crystal ? 0.18 : 0.2,
+          clearcoat: style === 0 || style === 2 || crystal ? 1 : 0.7,
+          clearcoatRoughness: 0.12,
+          emissive: style === 4 ? color : 0x000000,
+          emissiveIntensity: style === 4 ? 1.2 : 0,
+          sheen: style === 1 ? 0.5 : 0,
+          sheenColor: style === 1 ? new THREE.Color(0xe7fdf0) : 0x000000
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.scale.set(isHead ? 1.26 : 1, 1, isHead ? 1.32 : 1);
+        group.userData.coreMesh = mesh;
+        group.add(mesh);
+
+        if (isHead) {
+          const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.32, 12), new THREE.MeshStandardMaterial({ color, metalness: 0.12, roughness: 0.24 }));
+          neck.rotation.z = Math.PI / 2;
+          neck.position.set(0.18, 0, 0);
+          group.add(neck);
+
+          const snout = new THREE.Mesh(
+            new THREE.ConeGeometry(0.14, 0.48, 12),
+            new THREE.MeshStandardMaterial({ color, metalness: 0.12, roughness: 0.26 })
+          );
+          snout.rotation.z = -Math.PI / 2;
+          snout.position.set(0.48, 0, 0);
+          group.add(snout);
+
+          const jaw = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, 0.13, 0.09),
+            new THREE.MeshStandardMaterial({ color: 0x1f2c32, metalness: 0.12, roughness: 0.72 })
+          );
+          jaw.position.set(0.58, -0.12, 0);
+          group.add(jaw);
+        }
+
+        if (style === 1) {
+          const ridgeMaterial = new THREE.MeshStandardMaterial({ color: 0xf0ffdb, metalness: 0.18, roughness: 0.28 });
+          for (const offset of [-0.18, 0.18]) {
+            const band = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 6, 20), ridgeMaterial);
+            band.rotation.x = Math.PI / 2;
+            band.position.y = offset;
+            group.add(band);
+          }
+        } else if (style === 2) {
+          const trim = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 0.18), new THREE.MeshStandardMaterial({ color: 0xe9f6ff, metalness: 0.8, roughness: 0.16 }));
+          trim.position.set(0, 0.32, 0);
+          trim.rotation.z = 0.2;
+          group.add(trim);
+        } else if (style === 3) {
+          const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: color, emissiveIntensity: 0.45, roughness: 0.2, metalness: 0.7 }));
+          core.position.set(0, 0.06, 0);
+          group.add(core);
+        } else if (style === 4) {
+          const haloMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.52, side: THREE.DoubleSide });
+          const halo = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.02, 6, 28), haloMaterial);
+          halo.rotation.x = Math.PI / 2;
+          group.add(halo);
+          const flare = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 }));
+          flare.position.set(0, 0.08, 0);
+          group.add(flare);
+        }
+        return group;
+      }
+
+      function rebuildSnakeMeshes(look) {
+        disposeGroup(snakeGroup);
+        snakeMeshes = [];
+        snakeLook = look;
+        const style = Number(bodyStyleSelect.value);
+        for (let i = 0; i < body.length; i++) {
+          const color = rgbToggle.checked
+            ? new THREE.Color().setHSL((elapsed * 0.25 + i * 0.036) % 1, 0.8, 0.58)
+            : new THREE.Color(skins[Number(skinSelect.value)][1]);
+          const segment = makeSegment(color, style, i === 0);
+          segment.userData.index = i;
+          snakeGroup.add(segment);
+          snakeMeshes.push(segment);
+        }
+      }
+
+      function updateSnakeMeshes() {
+        const style = Number(bodyStyleSelect.value);
+        if (snakeMeshes.length !== body.length) rebuildSnakeMeshes(`${Number(skinSelect.value)}:${style}`);
+
+        body.forEach(([gx, gy], index) => {
+          const segment = snakeMeshes[index];
+          if (!segment) return;
+
+          const px = gx - GRID_W / 2 + 0.5;
+          const pz = gy - GRID_H / 2 + 0.5;
+          const current = new THREE.Vector3(px, 0.31, pz);
+          const previous = index > 0 ? new THREE.Vector3(body[index - 1][0] - GRID_W / 2 + 0.5, 0.31, body[index - 1][1] - GRID_H / 2 + 0.5) : null;
+          const next = index < body.length - 1 ? new THREE.Vector3(body[index + 1][0] - GRID_W / 2 + 0.5, 0.31, body[index + 1][1] - GRID_H / 2 + 0.5) : null;
+
+          let yaw = index === 0 ? Math.atan2(-direction[1], direction[0]) : 0;
+          if (index > 0 && next && previous) {
+            const dir = next.clone().sub(previous).normalize();
+            yaw = Math.atan2(-dir.z, dir.x);
+          } else if (index > 0 && next) {
+            const dir = next.clone().sub(current).normalize();
+            yaw = Math.atan2(-dir.z, dir.x);
+          }
+
+          const slither = Math.sin(elapsed * 12 + index * 0.9) * 0.18;
+          segment.position.copy(current);
+          segment.rotation.y = yaw;
+          segment.rotation.z = index === 0 ? slither * 1.15 : slither;
+          segment.rotation.x = index === 0 ? 0.12 * -direction[1] : Math.cos(elapsed * 8 + index * 0.8) * 0.1;
+
+          const taper = index === 0 ? 1.26 : index === body.length - 1 ? 0.92 : 1.04;
+          segment.scale.set(taper, 1, taper);
+
+          const color = rgbToggle.checked
+            ? new THREE.Color().setHSL((elapsed * 0.25 + index * 0.036) % 1, 0.8, 0.58)
+            : new THREE.Color(skins[Number(skinSelect.value)][1]);
+          segment.userData.coreMesh.material.color.copy(color);
+          if (style === 4) segment.userData.coreMesh.material.emissive.copy(color);
+          segment.children.forEach(child => {
+            if (child.material?.isMeshBasicMaterial) child.material.color.copy(color);
+            if (child.material?.isMeshStandardMaterial && child.geometry?.type === "ConeGeometry") child.material.color.copy(color);
+          });
+        });
+      }
+
+      function syncObstacles() {
+        const signature = [...obstacles].sort().join("|");
+        if (signature === obstacleSignature) return;
+        disposeGroup(obstacleGroup);
+        obstacleSignature = signature;
+        obstacles.forEach(key => {
+          const [gx, gy] = key.split(",").map(Number);
+          const geometry = new THREE.BoxGeometry(0.68, 0.68, 0.68);
+          const material = new THREE.MeshPhysicalMaterial({ color: 0x71828a, metalness: 0.72, roughness: 0.26, clearcoat: 0.7 });
+          const block = new THREE.Mesh(geometry, material);
+          block.position.set(gx - GRID_W / 2 + 0.5, 0.19, gy - GRID_H / 2 + 0.5);
+          block.castShadow = true;
+          block.receiveShadow = true;
+          obstacleGroup.add(block);
+          const edge = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xd5e4e6, transparent: true, opacity: 0.55 }));
+          edge.position.copy(block.position);
+          obstacleGroup.add(edge);
+        });
+      }
+
+      function syncFood() {
+        const signature = food ? cellKey(food) : "none";
+        if (foodGroup.userData.signature === signature) return;
+        disposeGroup(foodGroup);
+        foodObject = null;
+        foodGroup.userData.signature = signature;
+        if (!food) return;
+
+        const apple = new THREE.Group();
+        const profile = [
+          new THREE.Vector2(0, 0), new THREE.Vector2(0.13, 0.025),
+          new THREE.Vector2(0.25, 0.1), new THREE.Vector2(0.32, 0.23),
+          new THREE.Vector2(0.29, 0.36), new THREE.Vector2(0.17, 0.46),
+          new THREE.Vector2(0.07, 0.44), new THREE.Vector2(0, 0.47)
+        ];
+        const appleMaterial = new THREE.MeshPhysicalMaterial({ color: 0xf04439, roughness: 0.2, metalness: 0.04, clearcoat: 1, clearcoatRoughness: 0.08 });
+        const fruit = new THREE.Mesh(new THREE.LatheGeometry(profile, 32), appleMaterial);
+        fruit.castShadow = true;
+        fruit.receiveShadow = true;
+        apple.add(fruit);
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.16, 8), new THREE.MeshStandardMaterial({ color: 0x69452a, roughness: 0.72 }));
+        stem.position.set(0, 0.49, 0);
+        stem.rotation.z = -0.16;
+        apple.add(stem);
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), new THREE.MeshPhysicalMaterial({ color: 0x9bd654, roughness: 0.28, clearcoat: 0.65 }));
+        leaf.scale.set(0.16, 0.035, 0.075);
+        leaf.position.set(0.12, 0.48, 0);
+        leaf.rotation.z = 0.25;
+        apple.add(leaf);
+        const glow = new THREE.PointLight(0xff463b, 1.4, 3.6, 2);
+        glow.position.y = 0.25;
+        apple.add(glow);
+        apple.position.set(food[0] - GRID_W / 2 + 0.5, -0.11, food[1] - GRID_H / 2 + 0.5);
+        foodGroup.add(apple);
+        foodObject = apple;
+      }
+
+      function syncPowerFruit() {
+        const signature = powerFruit ? cellKey(powerFruit) : "none";
+        if (powerFruitSignature === signature) return;
+        disposeGroup(powerFruitGroup);
+        powerFruitObject = null;
+        powerFruitSignature = signature;
+        if (!powerFruit) return;
+
+        const fruit = new THREE.Group();
+        const jewel = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.34, 1),
+          new THREE.MeshPhysicalMaterial({ color: 0xd869ff, emissive: 0x8c21d6, emissiveIntensity: 1.25, metalness: 0.28, roughness: 0.16, clearcoat: 1 })
+        );
+        jewel.castShadow = true;
+        jewel.receiveShadow = true;
+        fruit.add(jewel);
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.46, 0.035, 8, 32),
+          new THREE.MeshBasicMaterial({ color: 0xf3b5ff, transparent: true, opacity: 0.9 })
+        );
+        ring.rotation.x = Math.PI / 2;
+        fruit.add(ring);
+        const glow = new THREE.PointLight(0xd34cff, 2.2, 4.5, 2);
+        glow.position.y = 0.1;
+        fruit.add(glow);
+        fruit.position.set(powerFruit[0] - GRID_W / 2 + 0.5, 0.08, powerFruit[1] - GRID_H / 2 + 0.5);
+        powerFruitGroup.add(fruit);
+        powerFruitObject = fruit;
+      }
+
+      function syncFace() {
+        const signature = `${body.length ? cellKey(body[0]) : "empty"}:${Number(faceSelect.value)}:${direction.join(",")}:${Number(bodyStyleSelect.value)}`;
+        if (faceSignature === signature) return;
+        disposeGroup(faceGroup);
+        faceSignature = signature;
+        if (!body.length) return;
+        const face = faces[Number(faceSelect.value)];
+        const head = new THREE.Group();
+        head.position.set(body[0][0] - GRID_W / 2 + 0.5, 0.31, body[0][1] - GRID_H / 2 + 0.5);
+        head.rotation.y = Math.atan2(-direction[1], direction[0]);
+        const faceFactor = Number(bodyStyleSelect.value) === 3 ? 1.2 : Number(bodyStyleSelect.value) === 4 ? 1.14 : 1;
+        head.scale.set(faceFactor, 1, 1);
+        const addBall = (geometry, color, position, scale = [1, 1, 1], options = {}) => {
+          const material = new THREE.MeshPhysicalMaterial({ color, roughness: 0.24, clearcoat: 0.8, ...options });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(...position);
+          mesh.scale.set(...scale);
+          head.add(mesh);
+          return mesh;
+        };
+        const addEyePair = ({ color = 0xf7f4e8, pupil = 0x182126, scaleY = 1, pupilScale = 1, spacing = 0.17 } = {}) => {
+          for (const side of [-1, 1]) {
+            const offset = side * spacing;
+            const eye = addBall(new THREE.SphereGeometry(0.12, 18, 14), color, [0.18, 0.64, offset], [1, scaleY, 0.82]);
+            const pupilOffset = 0.03 + Math.sin(elapsed * 5) * 0.015;
+            const pupilX = 0.225 + (direction[0] * 0.02) + (side * direction[0] * 0.015);
+            const pupilY = 0.706 + (direction[1] * 0.02);
+            addBall(new THREE.SphereGeometry(0.055, 14, 10), pupil, [pupilX, pupilY, offset + pupilOffset], [1, pupilScale, 0.88], { roughness: 0.12, clearcoat: 1 });
+            addBall(new THREE.SphereGeometry(0.018, 10, 8), 0xffffff, [0.244, 0.731, offset + 0.012], [1, 1, 1]);
+            eye.rotation.y = side * (0.18 + Math.sin(elapsed * 4.5 + side) * 0.08);
+          }
+        };
+        const addBrow = (z, tilt = 0) => {
+          const brow = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.035, 0.22), new THREE.MeshStandardMaterial({ color: 0x26302d, roughness: 0.65 }));
+          brow.position.set(0.19, 0.765, z);
+          brow.rotation.x = tilt;
+          head.add(brow);
+        };
+        const addMouth = (color = 0x26302d, scale = [1, 1, 1]) => {
+          return addBall(new THREE.SphereGeometry(0.07, 16, 12), color, [0.34, 0.625, 0], scale);
+        };
+        const addTongue = () => {
+          const tongue = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.032, 0.052, 0.22, 12),
+            new THREE.MeshStandardMaterial({ color: 0xff4d6d, roughness: 0.55, metalness: 0.08 })
+          );
+          tongue.rotation.z = Math.PI / 2;
+          tongue.position.set(0.5, 0.52, 0);
+          tongue.scale.y = 1 + Math.sin(elapsed * 8) * 0.12;
+          head.add(tongue);
+        };
+        const smile = () => {
+          const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.018, 8, 20, Math.PI), new THREE.MeshStandardMaterial({ color: 0x28312e, roughness: 0.56 }));
+          mouth.rotation.set(Math.PI / 2, 0, Math.PI);
+          mouth.position.set(0.31, 0.64, 0);
+          head.add(mouth);
+          addTongue();
+        };
+
+        if (face === "Heart") {
+          const heart = new THREE.Shape();
+          heart.moveTo(0, -0.07);
+          heart.bezierCurveTo(-0.15, 0.02, -0.09, 0.13, 0, 0.075);
+          heart.bezierCurveTo(0.09, 0.13, 0.15, 0.02, 0, -0.07);
+          for (const side of [-1, 1]) {
+            const eye = new THREE.Mesh(new THREE.ShapeGeometry(heart), new THREE.MeshPhysicalMaterial({ color: 0xff4b78, side: THREE.DoubleSide, roughness: 0.2, clearcoat: 1 }));
+            eye.rotation.x = Math.PI / 2;
+            eye.position.set(0.18, 0.69, side * 0.17);
+            head.add(eye);
+          }
+          smile();
+        } else if (face === "Alien") {
+          addEyePair({ color: 0xaaff76, pupil: 0x15220d, scaleY: 1.65, pupilScale: 1.5, spacing: 0.19 });
+          addMouth(0x83df64, [0.8, 0.36, 1.7]);
+        } else if (face === "Robot") {
+          for (const side of [-1, 1]) {
+            const eye = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.09, 0.15), new THREE.MeshStandardMaterial({ color: 0x6ef8ed, emissive: 0x27bbb0, emissiveIntensity: 1.6, metalness: 0.45, roughness: 0.2 }));
+            eye.position.set(0.19, 0.68, side * 0.16);
+            head.add(eye);
+          }
+          const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.035, 0.24), new THREE.MeshStandardMaterial({ color: 0x273b3d, metalness: 0.75, roughness: 0.24 }));
+          mouth.position.set(0.34, 0.64, 0);
+          head.add(mouth);
+          for (let i = -1; i <= 1; i++) {
+            const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.045, 0.025), new THREE.MeshStandardMaterial({ color: 0x9be9dd, metalness: 0.4, roughness: 0.32 }));
+            tooth.position.set(0.34, 0.66, i * 0.07);
+            head.add(tooth);
+          }
+        } else if (face === "Ninja") {
+          addEyePair({ color: 0xf3edda, pupil: 0x151b1c, scaleY: 0.78, spacing: 0.18 });
+          const band = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.76), new THREE.MeshStandardMaterial({ color: 0x20272a, roughness: 0.8, metalness: 0.12 }));
+          band.position.set(0.11, 0.59, 0);
+          head.add(band);
+          const knot = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), new THREE.MeshStandardMaterial({ color: 0xcc4c4a, roughness: 0.62 }));
+          knot.position.set(-0.08, 0.58, -0.38);
+          head.add(knot);
+        } else if (face === "Sleepy") {
+          addEyePair({ color: 0xd8dfd7, pupil: 0x39413d, scaleY: 0.32, pupilScale: 0.42 });
+          addBrow(0.17, -0.12);
+          addBrow(-0.17, -0.12);
+          addMouth(0x38413d, [0.85, 0.55, 0.75]);
+        } else if (face === "Wink") {
+          addEyePair({ scaleY: 1 });
+          addBall(new THREE.SphereGeometry(0.11, 16, 12), 0x26302d, [0.18, 0.68, -0.17], [1.15, 0.18, 0.55]);
+          smile();
+        } else if (face === "Angry") {
+          addEyePair({ color: 0xffeee0, pupil: 0x291e1c, scaleY: 0.72 });
+          addBrow(0.17, -0.48);
+          addBrow(-0.17, 0.48);
+          addMouth(0x5c2221, [1.25, 0.4, 0.85]);
+        } else if (face === "Surprised") {
+          addEyePair({ scaleY: 1.35, pupilScale: 1.15 });
+          addMouth(0x302728, [0.78, 1.35, 0.78]);
+        } else if (face === "Cool") {
+          addEyePair({ color: 0x314955, pupil: 0x12191d, scaleY: 0.76 });
+          const shades = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.075, 0.54), new THREE.MeshPhysicalMaterial({ color: 0x111a20, metalness: 0.65, roughness: 0.16, clearcoat: 1 }));
+          shades.position.set(0.2, 0.7, 0);
+          head.add(shades);
+          const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.035, 0.12), new THREE.MeshStandardMaterial({ color: 0xd3e2d9, metalness: 0.72, roughness: 0.2 }));
+          bridge.position.set(0.26, 0.71, 0);
+          head.add(bridge);
+          smile();
+        } else if (face === "Silly") {
+          addEyePair({ spacing: 0.18 });
+          addBall(new THREE.SphereGeometry(0.085, 14, 12), 0xff6c91, [0.34, 0.62, 0], [0.8, 0.6, 1.7]);
+          addBall(new THREE.SphereGeometry(0.018, 10, 8), 0xffc7cf, [0.36, 0.657, 0.045]);
+        } else if (face === "Happy") {
+          addEyePair({ color: 0x182126, pupil: 0x182126, scaleY: 0.18, pupilScale: 0.3 });
+          smile();
+        } else {
+          addEyePair();
+          addMouth(0x28312e, [0.85, 0.4, 1.25]);
+          addTongue();
+        }
+        faceGroup.add(head);
+      }
+
+      function frame(time) {
+        const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
+        lastTime = time;
+        elapsed += dt;
+        if (state === "playing") {
+          if (powerFruit) {
+            powerFruitLifetime -= dt;
+            if (powerFruitLifetime <= 0) {
+              powerFruit = null;
+              powerFruitLifetime = 0;
+              powerFruitCooldown = POWER_FRUIT_RESPAWN;
+              powerFruitSignature = "";
+            }
+          } else if (powerFruitCooldown > 0) {
+            powerFruitCooldown = Math.max(0, powerFruitCooldown - dt);
+            if (powerFruitCooldown === 0) placePowerFruit();
+          }
+          updateHud();
+          moveAccumulator += dt;
+          const interval = 1 / Math.max(4, speed);
+          while (moveAccumulator >= interval && state === "playing") {
+            moveAccumulator -= interval;
+            moveSnake();
+          }
+        }
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function backToReady() {
+        if (state === "playing" || state === "paused") {
+          state = "ready";
+          setOverlay(state);
+        }
+      }
+
+      function handleDirectionInput(next) {
+        if (!next) return;
+        if (state === "ready" || state === "over") {
+          startGame();
+        }
+        if (state === "playing") queueDirection(next);
+      }
+
+      let touchStartPoint = null;
+      function registerTouchControls() {
+        const touchControls = document.querySelectorAll(".touch-button");
+        touchControls.forEach(button => {
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            const dir = button.dataset.direction;
+            if (dir === "pause") {
+              if (state === "playing" || state === "paused") togglePause();
+              else if (state === "ready" || state === "over") startGame();
+              return;
+            }
+            const mapping = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+            handleDirectionInput(mapping[dir]);
+          });
+        });
+
+        canvas.addEventListener("touchstart", event => {
+          const touch = event.touches[0];
+          if (!touch) return;
+          touchStartPoint = { x: touch.clientX, y: touch.clientY };
+        }, { passive: true });
+
+        canvas.addEventListener("touchend", event => {
+          if (!touchStartPoint) return;
+          const touch = event.changedTouches[0];
+          if (!touch) return;
+          const dx = touch.clientX - touchStartPoint.x;
+          const dy = touch.clientY - touchStartPoint.y;
+          touchStartPoint = null;
+          if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            handleDirectionInput(dx > 0 ? [1, 0] : [-1, 0]);
+          } else {
+            handleDirectionInput(dy > 0 ? [0, 1] : [0, -1]);
+          }
+        }, { passive: true });
+      }
+
+      customMusicFileInput.addEventListener("change", () => {
+        const file = customMusicFileInput.files && customMusicFileInput.files[0];
+        if (!file) return;
+        if (customMusicUrl) URL.revokeObjectURL(customMusicUrl);
+        customMusicUrl = URL.createObjectURL(file);
+        customMusicAudio.pause();
+        customMusicAudio.src = customMusicUrl;
+        customMusicAudio.load();
+        customMusicName.textContent = file.name;
+        clearCustomMusicButton.disabled = false;
+        saveNote.textContent = "Selected music stays on this device.";
+        if (state === "playing" && musicToggle.checked) syncMusic();
+        customMusicFileInput.value = "";
+      });
+
+      clearCustomMusicButton.addEventListener("click", () => {
+        customMusicAudio.pause();
+        customMusicAudio.removeAttribute("src");
+        customMusicAudio.load();
+        if (customMusicUrl) URL.revokeObjectURL(customMusicUrl);
+        customMusicUrl = "";
+        customMusicName.textContent = "Built-in game music";
+        clearCustomMusicButton.disabled = true;
+        if (state === "playing" && musicToggle.checked) syncMusic();
+      });
+
+      document.getElementById("start-button").addEventListener("click", startGame);
+      document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
+      pauseButton.addEventListener("click", togglePause);
+      soundButton.addEventListener("click", toggleSound);
+      [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle, soundToggle, musicToggle].forEach(control => {
+        control.addEventListener("change", () => {
+          if (control === modeSelect && state !== "ready") resetGame("ready");
+          else persist();
+          if ((control === soundToggle && soundToggle.checked) || (control === musicToggle && musicToggle.checked)) initializeAudio();
+          if (control === musicToggle) syncMusic();
+          updateHud();
+        });
+      });
+      playerInput.addEventListener("change", persist);
+      playerInput.addEventListener("input", updateHud);
+      document.getElementById("background-file").addEventListener("change", event => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const image = new Image();
+          image.onload = () => {
+            customBackground = image;
+            if (backgroundMaterial.map) backgroundMaterial.map.dispose();
+            backgroundMaterial.map = new THREE.Texture(image);
+            backgroundMaterial.map.colorSpace = THREE.SRGBColorSpace;
+            backgroundMaterial.map.needsUpdate = true;
+            backgroundPlane.visible = true;
+            saveNote.textContent = `Background loaded: ${file.name}`;
+            draw();
+          };
+          image.onerror = () => { saveNote.textContent = "Could not load that image. Try a PNG, JPG or WebP."; };
+          image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+        event.target.value = "";
+      });
+
+      window.addEventListener("keydown", event => {
+        const key = event.key.toLowerCase();
+        const directions = {
+          arrowup: [0, -1], w: [0, -1], arrowdown: [0, 1], s: [0, 1],
+          arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0]
+        };
+        if (directions[key] && state === "playing") {
+          event.preventDefault();
+          queueDirection(directions[key]);
+        } else if (key === " " || key === "spacebar") {
+          event.preventDefault();
+          if (state === "playing" || state === "paused") togglePause();
+          else if (state === "ready" || state === "over") startGame();
+        } else if (key === "escape") {
+          if (state === "playing") togglePause();
+          else if (state === "paused") backToReady();
+        }
+      });
+
+      const prefersTouch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+      if (prefersTouch) {
+        const touchControls = document.querySelector(".touch-controls");
+        if (touchControls) touchControls.style.display = "block";
+      }
+
+      registerTouchControls();
+      window.addEventListener("resize", resizeCanvas);
+      updateHud();
+      resetGame("ready");
+      resizeCanvas();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
