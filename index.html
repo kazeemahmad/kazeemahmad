@@ -216,6 +216,7 @@
             <label class="field"><span class="field-label">Player</span><input class="text-input" id="player-input" maxlength="24" value="Guest" aria-label="Player name"></label>
           </div>
           <div class="toggle-row"><span>Rainbow snake</span><label class="toggle" aria-label="Rainbow snake"><input id="rgb-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
+          <div class="toggle-row"><span>Sound effects</span><label class="toggle" aria-label="Sound effects"><input id="sound-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
         </section>
         <section class="panel-section">
           <h2 class="section-heading">Controls <span class="section-number">03</span></h2>
@@ -271,7 +272,7 @@
         { name: "Pro", start: 17, max: 24, wrap: false, obstacles: 16, note: "Maximum challenge · high speed · more obstacles" }
       ];
       const bodyStyles = ["Glossy Orb", "Dragon Scale", "Liquid Chrome", "Crystal", "Neon Pulse"];
-      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, mode: 1, player: "Guest", highscores: {} };
+      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, sound: false, mode: 1, player: "Guest", highscores: {} };
       let saved;
       try { saved = { ...defaults, ...JSON.parse(localStorage.getItem(SAVE_KEY) || "{}") }; }
       catch { saved = { ...defaults }; }
@@ -405,6 +406,7 @@
       const faceSelect = document.getElementById("face-select");
       const bodyStyleSelect = document.getElementById("body-style-select");
       const rgbToggle = document.getElementById("rgb-toggle");
+      const soundToggle = document.getElementById("sound-toggle");
       const modeNote = document.getElementById("mode-note");
       const saveNote = document.getElementById("save-note");
       const pauseButton = document.getElementById("pause-button");
@@ -422,6 +424,7 @@
       faceSelect.value = String(saved.face);
       bodyStyleSelect.value = String(saved.bodyStyle);
       rgbToggle.checked = Boolean(saved.rgb);
+      soundToggle.checked = Boolean(saved.sound);
       playerInput.value = String(saved.player || "Guest").slice(0, 24);
 
       let state = "ready";
@@ -458,11 +461,37 @@
         });
       }
 
+      let audioContext = null;
+      function initializeAudio() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!soundToggle.checked || !AudioContextClass) return;
+        audioContext ??= new AudioContextClass();
+        if (audioContext.state === "suspended") void audioContext.resume();
+      }
+
+      function playSound(frequency, duration = 0.12, waveform = "sine") {
+        if (!soundToggle.checked) return;
+        initializeAudio();
+        if (!audioContext || audioContext.state !== "running") return;
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const volume = audioContext.createGain();
+        oscillator.type = waveform;
+        oscillator.frequency.setValueAtTime(frequency, now);
+        volume.gain.setValueAtTime(0.0001, now);
+        volume.gain.exponentialRampToValueAtTime(0.07, now + 0.012);
+        volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        oscillator.connect(volume);
+        volume.connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+      }
+
       function persist() {
         saved = {
           ...saved,
           theme: Number(themeSelect.value), skin: Number(skinSelect.value),
-          face: Number(faceSelect.value), bodyStyle: Number(bodyStyleSelect.value), rgb: rgbToggle.checked,
+          face: Number(faceSelect.value), bodyStyle: Number(bodyStyleSelect.value), rgb: rgbToggle.checked, sound: soundToggle.checked,
           mode: Number(modeSelect.value), player: playerName()
         };
         try {
@@ -618,6 +647,7 @@
       }
 
       function startGame() {
+        initializeAudio();
         if (state === "ready" || state === "over") resetGame("playing");
         else { state = "playing"; setOverlay(state); }
       }
@@ -639,11 +669,13 @@
         if (state === "playing") state = "paused";
         else if (state === "paused") state = "playing";
         else return;
+        playSound(state === "paused" ? 320 : 520, 0.1);
         setOverlay(state);
       }
 
       function finishGame() {
         state = "over";
+        playSound(170, 0.28, "triangle");
         const name = playerName();
         if (score > Number(saved.highscores[name] || 0)) {
           saved.highscores[name] = score;
@@ -677,6 +709,7 @@
         body.unshift(next);
         if (eating || eatingPowerFruit) {
           if (eating) {
+            playSound(620, 0.1);
             score += 10;
             speed = Math.min(mode.max, mode.start + Math.floor(score / 70));
             placeFood();
@@ -684,6 +717,7 @@
             if (!food) finishGame();
           }
           if (eatingPowerFruit) {
+            playSound(920, 0.2, "triangle");
             powerFruit = null;
             powerFruitLifetime = 0;
             powerFruitCooldown = POWER_FRUIT_RESPAWN;
@@ -1483,10 +1517,11 @@
       document.getElementById("start-button").addEventListener("click", startGame);
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
       pauseButton.addEventListener("click", togglePause);
-      [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle].forEach(control => {
+      [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle, soundToggle].forEach(control => {
         control.addEventListener("change", () => {
           if (control === modeSelect && state !== "ready") resetGame("ready");
           else persist();
+          if (control === soundToggle && soundToggle.checked) initializeAudio();
           updateHud();
         });
       });
