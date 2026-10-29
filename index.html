@@ -53,6 +53,8 @@
     .scorebar { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 4px 15px; }
     .score-group { display: flex; align-items: baseline; gap: clamp(18px, 4vw, 48px); }
     .metric { display: flex; align-items: baseline; gap: 9px; }
+    .main-game-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -7px 4px 10px; }
+    .main-game-actions .button { min-width: 116px; }
     .metric-label { color: var(--muted); font: 10px "DM Mono", monospace; letter-spacing: 0; text-transform: uppercase; }
     .metric-value { color: var(--paper); font: 500 21px "DM Mono", monospace; }
     .metric:first-child .metric-value { color: var(--lime); font-size: 27px; }
@@ -137,6 +139,8 @@
       .brand-mark { width: 36px; height: 36px; }
       .local-tag { font-size: 9px; }
       .scorebar { min-height: 65px; padding-bottom: 10px; }
+      .main-game-actions { justify-content: stretch; margin: 0 0 10px; }
+      .main-game-actions .button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
       .metric { display: block; }
       .metric-label { display: block; margin-bottom: 3px; font-size: 9px; }
       .metric-value { font-size: 16px; }
@@ -170,6 +174,10 @@
             <div class="metric"><span class="metric-label">Personal best</span><strong class="metric-value" id="best">000</strong></div>
           </div>
           <div class="player-name" id="player-display">PLAYER: GUEST</div>
+        </div>
+        <div class="main-game-actions" aria-label="Game actions">
+          <button class="button" id="pause-button" type="button" disabled>Pause game</button>
+          <button class="button" id="sound-button" type="button" aria-pressed="true">Sound: On</button>
         </div>
         <div class="power-status" id="power-status" role="status" aria-live="polite"><span id="power-status-text">Power fruit appears during play</span></div>
         <div class="board-frame">
@@ -224,7 +232,6 @@
           <div class="action-stack">
             <button class="button primary full" id="start-button" type="button">Start game</button>
             <button class="button full" id="restart-button" type="button">Restart run</button>
-            <button class="button full" id="pause-button" type="button" disabled>Pause game</button>
             <label class="button ghost full custom-file">Load background image<input id="background-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
           </div>
           <div class="save-note" id="save-note" role="status">Settings and records save on this device.</div>
@@ -412,6 +419,7 @@
       const modeNote = document.getElementById("mode-note");
       const saveNote = document.getElementById("save-note");
       const pauseButton = document.getElementById("pause-button");
+      const soundButton = document.getElementById("sound-button");
       const powerStatus = document.getElementById("power-status");
       const powerStatusText = document.getElementById("power-status-text");
 
@@ -572,6 +580,7 @@
         bestNode.textContent = String(best).padStart(3, "0");
         playerDisplay.textContent = `PLAYER: ${playerName().toUpperCase()}`;
         modeNote.textContent = modes[Number(modeSelect.value)].note;
+        syncSoundButton();
         powerStatus.classList.remove("boosting");
         if (powerFruit) {
           powerStatusText.innerHTML = `POWER FRUIT EXPIRES IN · <strong>${Math.ceil(powerFruitLifetime)}s</strong>`;
@@ -714,6 +723,23 @@
           touchPauseButton.textContent = paused ? "▶" : "Ⅱ";
           touchPauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
         }
+      }
+
+      function syncSoundButton() {
+        const enabled = soundToggle.checked || musicToggle.checked;
+        soundButton.textContent = enabled ? "Sound: On" : "Sound: Off";
+        soundButton.setAttribute("aria-pressed", String(enabled));
+        soundButton.setAttribute("aria-label", enabled ? "Turn sound off" : "Turn sound on");
+      }
+
+      function toggleSound() {
+        const enabled = !(soundToggle.checked || musicToggle.checked);
+        soundToggle.checked = enabled;
+        musicToggle.checked = enabled;
+        if (enabled) initializeAudio();
+        persist();
+        syncMusic();
+        updateHud();
       }
 
       function togglePause() {
@@ -1568,6 +1594,7 @@
       document.getElementById("start-button").addEventListener("click", startGame);
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
       pauseButton.addEventListener("click", togglePause);
+      soundButton.addEventListener("click", toggleSound);
       [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle, soundToggle, musicToggle].forEach(control => {
         control.addEventListener("change", () => {
           if (control === modeSelect && state !== "ready") resetGame("ready");
