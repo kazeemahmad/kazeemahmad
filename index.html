@@ -217,6 +217,7 @@
           </div>
           <div class="toggle-row"><span>Rainbow snake</span><label class="toggle" aria-label="Rainbow snake"><input id="rgb-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
           <div class="toggle-row"><span>Sound effects</span><label class="toggle" aria-label="Sound effects"><input id="sound-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
+          <div class="toggle-row"><span>Soft soundtrack</span><label class="toggle" aria-label="Soft soundtrack"><input id="music-toggle" type="checkbox" checked><span class="toggle-track"></span></label></div>
         </section>
         <section class="panel-section">
           <h2 class="section-heading">Controls <span class="section-number">03</span></h2>
@@ -272,7 +273,7 @@
         { name: "Pro", start: 17, max: 24, wrap: false, obstacles: 16, note: "Maximum challenge · high speed · more obstacles" }
       ];
       const bodyStyles = ["Glossy Orb", "Dragon Scale", "Liquid Chrome", "Crystal", "Neon Pulse"];
-      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, sound: false, mode: 1, player: "Guest", highscores: {} };
+      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, sound: false, music: true, mode: 1, player: "Guest", highscores: {} };
       let saved;
       try { saved = { ...defaults, ...JSON.parse(localStorage.getItem(SAVE_KEY) || "{}") }; }
       catch { saved = { ...defaults }; }
@@ -407,6 +408,7 @@
       const bodyStyleSelect = document.getElementById("body-style-select");
       const rgbToggle = document.getElementById("rgb-toggle");
       const soundToggle = document.getElementById("sound-toggle");
+      const musicToggle = document.getElementById("music-toggle");
       const modeNote = document.getElementById("mode-note");
       const saveNote = document.getElementById("save-note");
       const pauseButton = document.getElementById("pause-button");
@@ -425,6 +427,7 @@
       bodyStyleSelect.value = String(saved.bodyStyle);
       rgbToggle.checked = Boolean(saved.rgb);
       soundToggle.checked = Boolean(saved.sound);
+      musicToggle.checked = Boolean(saved.music);
       playerInput.value = String(saved.player || "Guest").slice(0, 24);
 
       let state = "ready";
@@ -464,7 +467,7 @@
       let audioContext = null;
       function initializeAudio() {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!soundToggle.checked || !AudioContextClass) return;
+        if (!AudioContextClass) return;
         audioContext ??= new AudioContextClass();
         if (audioContext.state === "suspended") void audioContext.resume();
       }
@@ -487,11 +490,58 @@
         oscillator.stop(now + duration);
       }
 
+      let musicTimer = null;
+      let musicStep = 0;
+      const musicNotes = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 392, 329.63];
+
+      function playMusicNote(frequency, duration, level) {
+        if (!audioContext || audioContext.state !== "running") return;
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const volume = audioContext.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now);
+        volume.gain.setValueAtTime(0.0001, now);
+        volume.gain.exponentialRampToValueAtTime(level, now + 0.1);
+        volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        oscillator.connect(volume);
+        volume.connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+      }
+
+      function stopMusic() {
+        if (musicTimer !== null) window.clearInterval(musicTimer);
+        musicTimer = null;
+      }
+
+      function startMusic() {
+        if (!musicToggle.checked || state !== "playing" || musicTimer !== null) return;
+        initializeAudio();
+        const playStep = () => {
+          if (!musicToggle.checked || state !== "playing") {
+            stopMusic();
+            return;
+          }
+          const note = musicNotes[musicStep];
+          playMusicNote(note, 0.46, 0.018);
+          if (musicStep % 4 === 0) playMusicNote(note / 2, 0.82, 0.006);
+          musicStep = (musicStep + 1) % musicNotes.length;
+        };
+        playStep();
+        musicTimer = window.setInterval(playStep, 560);
+      }
+
+      function syncMusic() {
+        if (state === "playing" && musicToggle.checked) startMusic();
+        else stopMusic();
+      }
+
       function persist() {
         saved = {
           ...saved,
           theme: Number(themeSelect.value), skin: Number(skinSelect.value),
-          face: Number(faceSelect.value), bodyStyle: Number(bodyStyleSelect.value), rgb: rgbToggle.checked, sound: soundToggle.checked,
+          face: Number(faceSelect.value), bodyStyle: Number(bodyStyleSelect.value), rgb: rgbToggle.checked, sound: soundToggle.checked, music: musicToggle.checked,
           mode: Number(modeSelect.value), player: playerName()
         };
         try {
@@ -607,6 +657,7 @@
 
       function setOverlay(nextState) {
         syncPauseControl();
+        syncMusic();
         overlayActions.replaceChildren();
         if (nextState === "playing") {
           overlay.hidden = true;
@@ -647,7 +698,7 @@
       }
 
       function startGame() {
-        initializeAudio();
+        if (soundToggle.checked || musicToggle.checked) initializeAudio();
         if (state === "ready" || state === "over") resetGame("playing");
         else { state = "playing"; setOverlay(state); }
       }
@@ -1517,11 +1568,12 @@
       document.getElementById("start-button").addEventListener("click", startGame);
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
       pauseButton.addEventListener("click", togglePause);
-      [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle, soundToggle].forEach(control => {
+      [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle, soundToggle, musicToggle].forEach(control => {
         control.addEventListener("change", () => {
           if (control === modeSelect && state !== "ready") resetGame("ready");
           else persist();
-          if (control === soundToggle && soundToggle.checked) initializeAudio();
+          if ((control === soundToggle && soundToggle.checked) || (control === musicToggle && musicToggle.checked)) initializeAudio();
+          if (control === musicToggle) syncMusic();
           updateHud();
         });
       });
