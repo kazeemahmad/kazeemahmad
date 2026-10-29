@@ -429,11 +429,10 @@
       let powerFruit = null;
       let powerFruitLifetime = 0;
       let powerFruitCooldown = 12;
-      let powerGrowthTimer = 0;
       let growthPending = 0;
       const POWER_FRUIT_LIFETIME = 8;
       const POWER_FRUIT_RESPAWN = 18;
-      const POWER_GROWTH_DURATION = 5;
+      const POWER_FRUIT_GROWTH = 5;
       let obstacles = new Set();
       let score = 0;
       let speed = modes[saved.mode].start;
@@ -491,10 +490,8 @@
         bestNode.textContent = String(best).padStart(3, "0");
         playerDisplay.textContent = `PLAYER: ${playerName().toUpperCase()}`;
         modeNote.textContent = modes[Number(modeSelect.value)].note;
-        powerStatus.classList.toggle("boosting", powerGrowthTimer > 0);
-        if (powerGrowthTimer > 0) {
-          powerStatusText.innerHTML = `5× BODY GROWTH · <strong>${Math.ceil(powerGrowthTimer)}s</strong>`;
-        } else if (powerFruit) {
+        powerStatus.classList.remove("boosting");
+        if (powerFruit) {
           powerStatusText.innerHTML = `POWER FRUIT EXPIRES IN · <strong>${Math.ceil(powerFruitLifetime)}s</strong>`;
         } else if (state === "playing") {
           powerStatusText.innerHTML = `NEXT POWER FRUIT IN · <strong>${Math.ceil(powerFruitCooldown)}s</strong>`;
@@ -566,7 +563,6 @@
         powerFruit = null;
         powerFruitLifetime = 0;
         powerFruitCooldown = 12;
-        powerGrowthTimer = 0;
         growthPending = 0;
         moveAccumulator = 0;
         generateObstacles();
@@ -659,7 +655,6 @@
           if (eating) {
             score += 10;
             speed = Math.min(mode.max, mode.start + Math.floor(score / 70));
-            if (powerGrowthTimer > 0) growthPending += 4;
             placeFood();
             updateHud();
             if (!food) finishGame();
@@ -668,8 +663,7 @@
             powerFruit = null;
             powerFruitLifetime = 0;
             powerFruitCooldown = POWER_FRUIT_RESPAWN;
-            powerGrowthTimer = POWER_GROWTH_DURATION;
-            growthPending += body.length * 4;
+            growthPending += POWER_FRUIT_GROWTH - 1;
             powerFruitSignature = "";
             updateHud();
           }
@@ -1384,7 +1378,6 @@
         lastTime = time;
         elapsed += dt;
         if (state === "playing") {
-          if (powerGrowthTimer > 0) powerGrowthTimer = Math.max(0, powerGrowthTimer - dt);
           if (powerFruit) {
             powerFruitLifetime -= dt;
             if (powerFruitLifetime <= 0) {
