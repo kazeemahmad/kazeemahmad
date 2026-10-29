@@ -121,6 +121,9 @@
     .toggle input:focus-visible + .toggle-track { outline: 2px solid var(--lime); outline-offset: 2px; }
     .custom-file { position: relative; overflow: hidden; }
     .custom-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .music-file-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .music-file-name { min-width: 0; flex: 1; overflow: hidden; color: #9eb4b6; font: 10px "DM Mono", monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .music-file-row .button { min-height: 32px; padding: 0 9px; font-size: 10px; }
     .save-note { min-height: 14px; margin-top: 9px; color: #81989a; font: 10px "DM Mono", monospace; }
     .footer-note { margin: 15px 3px 0; color: #829699; font: 10px "DM Mono", monospace; }
 
@@ -226,6 +229,8 @@
           <div class="toggle-row"><span>Rainbow snake</span><label class="toggle" aria-label="Rainbow snake"><input id="rgb-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
           <div class="toggle-row"><span>Sound effects</span><label class="toggle" aria-label="Sound effects"><input id="sound-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
           <div class="toggle-row"><span>Game music</span><label class="toggle" aria-label="Game music"><input id="music-toggle" type="checkbox" checked><span class="toggle-track"></span></label></div>
+          <label class="button ghost full custom-file">Choose your music<input id="custom-music-file" type="file" accept="audio/*"></label>
+          <div class="music-file-row"><span class="music-file-name" id="custom-music-name" role="status">Built-in game music</span><button class="button ghost" id="clear-custom-music" type="button" disabled>Use built-in</button></div>
         </section>
         <section class="panel-section">
           <h2 class="section-heading">Controls <span class="section-number">03</span></h2>
@@ -416,10 +421,17 @@
       const rgbToggle = document.getElementById("rgb-toggle");
       const soundToggle = document.getElementById("sound-toggle");
       const musicToggle = document.getElementById("music-toggle");
+      const customMusicFileInput = document.getElementById("custom-music-file");
+      const customMusicName = document.getElementById("custom-music-name");
+      const clearCustomMusicButton = document.getElementById("clear-custom-music");
       const modeNote = document.getElementById("mode-note");
       const saveNote = document.getElementById("save-note");
       const pauseButton = document.getElementById("pause-button");
       const soundButton = document.getElementById("sound-button");
+      const customMusicAudio = new Audio();
+      customMusicAudio.loop = true;
+      customMusicAudio.volume = 0.42;
+      let customMusicUrl = "";
       const powerStatus = document.getElementById("power-status");
       const powerStatusText = document.getElementById("power-status-text");
 
@@ -551,8 +563,23 @@
       }
 
       function syncMusic() {
-        if (state === "playing" && musicToggle.checked) startMusic();
-        else stopMusic();
+        if (state !== "playing" || !musicToggle.checked) {
+          stopMusic();
+          customMusicAudio.pause();
+          return;
+        }
+        if (customMusicAudio.src) {
+          stopMusic();
+          if (customMusicAudio.paused) {
+            const playback = customMusicAudio.play();
+            if (playback) playback.catch(() => {
+              saveNote.textContent = "Tap the game to allow your selected music to play.";
+            });
+          }
+          return;
+        }
+        customMusicAudio.pause();
+        startMusic();
       }
 
       function persist() {
@@ -1600,6 +1627,32 @@
           }
         }, { passive: true });
       }
+
+      customMusicFileInput.addEventListener("change", () => {
+        const file = customMusicFileInput.files && customMusicFileInput.files[0];
+        if (!file) return;
+        if (customMusicUrl) URL.revokeObjectURL(customMusicUrl);
+        customMusicUrl = URL.createObjectURL(file);
+        customMusicAudio.pause();
+        customMusicAudio.src = customMusicUrl;
+        customMusicAudio.load();
+        customMusicName.textContent = file.name;
+        clearCustomMusicButton.disabled = false;
+        saveNote.textContent = "Selected music stays on this device.";
+        if (state === "playing" && musicToggle.checked) syncMusic();
+        customMusicFileInput.value = "";
+      });
+
+      clearCustomMusicButton.addEventListener("click", () => {
+        customMusicAudio.pause();
+        customMusicAudio.removeAttribute("src");
+        customMusicAudio.load();
+        if (customMusicUrl) URL.revokeObjectURL(customMusicUrl);
+        customMusicUrl = "";
+        customMusicName.textContent = "Built-in game music";
+        clearCustomMusicButton.disabled = true;
+        if (state === "playing" && musicToggle.checked) syncMusic();
+      });
 
       document.getElementById("start-button").addEventListener("click", startGame);
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
