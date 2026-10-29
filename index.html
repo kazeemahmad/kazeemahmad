@@ -225,7 +225,7 @@
           </div>
           <div class="toggle-row"><span>Rainbow snake</span><label class="toggle" aria-label="Rainbow snake"><input id="rgb-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
           <div class="toggle-row"><span>Sound effects</span><label class="toggle" aria-label="Sound effects"><input id="sound-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
-          <div class="toggle-row"><span>Soft soundtrack</span><label class="toggle" aria-label="Soft soundtrack"><input id="music-toggle" type="checkbox" checked><span class="toggle-track"></span></label></div>
+          <div class="toggle-row"><span>Game music</span><label class="toggle" aria-label="Game music"><input id="music-toggle" type="checkbox" checked><span class="toggle-track"></span></label></div>
         </section>
         <section class="panel-section">
           <h2 class="section-heading">Controls <span class="section-number">03</span></h2>
@@ -500,17 +500,22 @@
 
       let musicTimer = null;
       let musicStep = 0;
-      const musicNotes = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 392, 329.63];
+      const musicLead = [69, 72, 76, 79, 76, 72, 76, 74, 67, 71, 74, 76, 74, 71, 69, 67];
+      const musicChords = [[45, 48, 52], [41, 45, 48], [48, 52, 55], [43, 47, 50]];
 
-      function playMusicNote(frequency, duration, level) {
+      function midiFrequency(note) {
+        return 440 * Math.pow(2, (note - 69) / 12);
+      }
+
+      function playMusicNote(frequency, duration, level, waveform = "sine", attack = 0.04) {
         if (!audioContext || audioContext.state !== "running") return;
         const now = audioContext.currentTime;
         const oscillator = audioContext.createOscillator();
         const volume = audioContext.createGain();
-        oscillator.type = "sine";
+        oscillator.type = waveform;
         oscillator.frequency.setValueAtTime(frequency, now);
         volume.gain.setValueAtTime(0.0001, now);
-        volume.gain.exponentialRampToValueAtTime(level, now + 0.1);
+        volume.gain.exponentialRampToValueAtTime(level, now + attack);
         volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
         oscillator.connect(volume);
         volume.connect(audioContext.destination);
@@ -531,13 +536,18 @@
             stopMusic();
             return;
           }
-          const note = musicNotes[musicStep];
-          playMusicNote(note, 0.46, 0.018);
-          if (musicStep % 4 === 0) playMusicNote(note / 2, 0.82, 0.006);
-          musicStep = (musicStep + 1) % musicNotes.length;
+          const step = musicStep % musicLead.length;
+          playMusicNote(midiFrequency(musicLead[step]), 0.22, 0.012, "triangle", 0.015);
+          if (step % 4 === 0) {
+            const chord = musicChords[Math.floor(step / 4)];
+            chord.forEach(note => playMusicNote(midiFrequency(note + 12), 1.08, 0.0025, "sine", 0.16));
+            playMusicNote(midiFrequency(chord[0]), 0.56, 0.012, "sine", 0.035);
+          }
+          if (step === 0 || step === 8) playMusicNote(55, 0.1, 0.004, "sine", 0.008);
+          musicStep = (musicStep + 1) % musicLead.length;
         };
         playStep();
-        musicTimer = window.setInterval(playStep, 560);
+        musicTimer = window.setInterval(playStep, 300);
       }
 
       function syncMusic() {
