@@ -99,6 +99,7 @@
     .button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid #536a6e; border-radius: 5px; color: #eaf0e7; background: #26383c; cursor: pointer; font-size: 12px; font-weight: 600; transition: background .15s, border-color .15s, transform .15s; }
     .button:hover { border-color: #9bb9a3; background: #31484a; }
     .button:active { transform: translateY(1px); }
+    .button:disabled { opacity: 0.5; cursor: not-allowed; }
     .button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
     .button.primary { border-color: var(--lime); color: #172118; background: var(--lime); }
     .button.primary:hover { border-color: #e2ffa0; background: #e2ffa0; }
@@ -221,6 +222,7 @@
           <div class="action-stack">
             <button class="button primary full" id="start-button" type="button">Start game</button>
             <button class="button full" id="restart-button" type="button">Restart run</button>
+            <button class="button full" id="pause-button" type="button" disabled>Pause game</button>
             <label class="button ghost full custom-file">Load background image<input id="background-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
           </div>
           <div class="save-note" id="save-note" role="status">Settings and records save on this device.</div>
@@ -405,6 +407,7 @@
       const rgbToggle = document.getElementById("rgb-toggle");
       const modeNote = document.getElementById("mode-note");
       const saveNote = document.getElementById("save-note");
+      const pauseButton = document.getElementById("pause-button");
       const powerStatus = document.getElementById("power-status");
       const powerStatusText = document.getElementById("power-status-text");
 
@@ -574,6 +577,7 @@
       }
 
       function setOverlay(nextState) {
+        syncPauseControl();
         overlayActions.replaceChildren();
         if (nextState === "playing") {
           overlay.hidden = true;
@@ -616,6 +620,26 @@
       function startGame() {
         if (state === "ready" || state === "over") resetGame("playing");
         else { state = "playing"; setOverlay(state); }
+      }
+
+      function syncPauseControl() {
+        const paused = state === "paused";
+        const canPause = paused || state === "playing";
+        pauseButton.textContent = paused ? "Resume game" : "Pause game";
+        pauseButton.disabled = !canPause;
+        pauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
+        const touchPauseButton = document.querySelector('.touch-button[data-direction="pause"]');
+        if (touchPauseButton) {
+          touchPauseButton.textContent = paused ? "▶" : "Ⅱ";
+          touchPauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
+        }
+      }
+
+      function togglePause() {
+        if (state === "playing") state = "paused";
+        else if (state === "paused") state = "playing";
+        else return;
+        setOverlay(state);
       }
 
       function finishGame() {
@@ -1425,8 +1449,7 @@
             event.preventDefault();
             const dir = button.dataset.direction;
             if (dir === "pause") {
-              if (state === "playing") { state = "paused"; setOverlay(state); }
-              else if (state === "paused") { state = "playing"; setOverlay(state); }
+              if (state === "playing" || state === "paused") togglePause();
               else if (state === "ready" || state === "over") startGame();
               return;
             }
@@ -1459,6 +1482,7 @@
 
       document.getElementById("start-button").addEventListener("click", startGame);
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
+      pauseButton.addEventListener("click", togglePause);
       [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle].forEach(control => {
         control.addEventListener("change", () => {
           if (control === modeSelect && state !== "ready") resetGame("ready");
@@ -1502,11 +1526,10 @@
           queueDirection(directions[key]);
         } else if (key === " " || key === "spacebar") {
           event.preventDefault();
-          if (state === "playing") { state = "paused"; setOverlay(state); }
-          else if (state === "paused") { state = "playing"; setOverlay(state); }
+          if (state === "playing" || state === "paused") togglePause();
           else if (state === "ready" || state === "over") startGame();
         } else if (key === "escape") {
-          if (state === "playing") { state = "paused"; setOverlay(state); }
+          if (state === "playing") togglePause();
           else if (state === "paused") backToReady();
         }
       });
