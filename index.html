@@ -55,6 +55,9 @@
     .metric { display: flex; align-items: baseline; gap: 9px; }
     .main-game-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -7px 4px 10px; }
     .main-game-actions .button { min-width: 116px; }
+    .main-music-controls { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.5fr); gap: 8px; margin: 0 4px 10px; }
+    .main-music-controls .custom-file { justify-content: center; }
+    .main-music-controls .music-file-row { min-width: 0; margin: 0; }
     .metric-label { color: var(--muted); font: 10px "DM Mono", monospace; letter-spacing: 0; text-transform: uppercase; }
     .metric-value { color: var(--paper); font: 500 21px "DM Mono", monospace; }
     .metric:first-child .metric-value { color: var(--lime); font-size: 27px; }
@@ -144,6 +147,7 @@
       .scorebar { min-height: 65px; padding-bottom: 10px; }
       .main-game-actions { justify-content: stretch; margin: 0 0 10px; }
       .main-game-actions .button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+      .main-music-controls { grid-template-columns: minmax(105px, 1fr) minmax(0, 1.4fr); margin: 0 0 10px; }
       .metric { display: block; }
       .metric-label { display: block; margin-bottom: 3px; font-size: 9px; }
       .metric-value { font-size: 16px; }
@@ -181,6 +185,10 @@
         <div class="main-game-actions" aria-label="Game actions">
           <button class="button" id="pause-button" type="button" disabled>Pause game</button>
           <button class="button" id="sound-button" type="button" aria-pressed="true">Sound: On</button>
+        </div>
+        <div class="main-music-controls" aria-label="Music controls">
+          <label class="button ghost custom-file">Choose your music<input id="custom-music-file" type="file" accept="audio/*"></label>
+          <div class="music-file-row"><span class="music-file-name" id="custom-music-name" role="status">Built-in game music</span><button class="button ghost" id="clear-custom-music" type="button" disabled>Use built-in</button></div>
         </div>
         <div class="power-status" id="power-status" role="status" aria-live="polite"><span id="power-status-text">Power fruit appears during play</span></div>
         <div class="board-frame">
@@ -229,8 +237,6 @@
           <div class="toggle-row"><span>Rainbow snake</span><label class="toggle" aria-label="Rainbow snake"><input id="rgb-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
           <div class="toggle-row"><span>Sound effects</span><label class="toggle" aria-label="Sound effects"><input id="sound-toggle" type="checkbox"><span class="toggle-track"></span></label></div>
           <div class="toggle-row"><span>Game music</span><label class="toggle" aria-label="Game music"><input id="music-toggle" type="checkbox" checked><span class="toggle-track"></span></label></div>
-          <label class="button ghost full custom-file">Choose your music<input id="custom-music-file" type="file" accept="audio/*"></label>
-          <div class="music-file-row"><span class="music-file-name" id="custom-music-name" role="status">Built-in game music</span><button class="button ghost" id="clear-custom-music" type="button" disabled>Use built-in</button></div>
         </section>
         <section class="panel-section">
           <h2 class="section-heading">Controls <span class="section-number">03</span></h2>
