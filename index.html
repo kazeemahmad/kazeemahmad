@@ -53,8 +53,15 @@
     .scorebar { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 4px 15px; }
     .score-group { display: flex; align-items: baseline; gap: clamp(18px, 4vw, 48px); }
     .metric { display: flex; align-items: baseline; gap: 9px; }
+    .level-progress-row { display: grid; grid-template-columns: auto minmax(70px, 1fr); align-items: center; gap: 10px; margin: -7px 4px 12px; color: #b6c4bd; font: 10px "DM Mono", monospace; text-transform: uppercase; }
+    .level-progress-track { overflow: hidden; height: 7px; border: 1px solid #53696d; border-radius: 8px; background: #101c21; }
+    .level-progress-fill { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #d3f36b, #9cf0a1); transition: width .2s ease; }
     .main-game-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -7px 4px 10px; }
     .main-game-actions .button { min-width: 116px; }
+    .game-menu-wrap { position: relative; }
+    .game-menu { position: absolute; z-index: 8; top: calc(100% + 7px); right: 0; width: 184px; display: grid; gap: 6px; padding: 8px; border: 1px solid #52666a; border-radius: 8px; background: #17262b; box-shadow: 0 12px 30px #0008; }
+    .game-menu[hidden] { display: none; }
+    .game-menu .button { width: 100%; min-width: 0; justify-content: flex-start; }
     .main-music-controls { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.5fr); gap: 8px; margin: 0 4px 10px; }
     .main-music-controls .custom-file { justify-content: center; }
     .main-music-controls .music-file-row { min-width: 0; margin: 0; }
@@ -145,6 +152,9 @@
       .brand-mark { width: 36px; height: 36px; }
       .local-tag { font-size: 9px; }
       .scorebar { min-height: 65px; padding-bottom: 10px; }
+      .score-group { gap: 11px; }
+      .metric { gap: 4px; }
+      .level-progress-row { margin: 0 0 10px; }
       .main-game-actions { justify-content: stretch; margin: 0 0 10px; }
       .main-game-actions .button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
       .main-music-controls { grid-template-columns: minmax(105px, 1fr) minmax(0, 1.4fr); margin: 0 0 10px; }
@@ -179,12 +189,28 @@
           <div class="score-group">
             <div class="metric"><span class="metric-label">Score</span><strong class="metric-value" id="score">000</strong></div>
             <div class="metric"><span class="metric-label">Personal best</span><strong class="metric-value" id="best">000</strong></div>
+            <div class="metric"><span class="metric-label">Level</span><strong class="metric-value" id="level">1</strong></div>
           </div>
           <div class="player-name" id="player-display">PLAYER: GUEST</div>
+        </div>
+        <div class="level-progress-row">
+          <span id="level-progress-label">LEVEL 1 · 0 / 50</span>
+          <div class="level-progress-track" id="level-progress" role="progressbar" aria-label="Current level progress" aria-valuemin="0" aria-valuemax="50" aria-valuenow="0" aria-valuetext="0 of 50 points">
+            <span class="level-progress-fill" id="level-progress-fill"></span>
+          </div>
         </div>
         <div class="main-game-actions" aria-label="Game actions">
           <button class="button" id="pause-button" type="button" disabled>Pause game</button>
           <button class="button" id="sound-button" type="button" aria-pressed="true">Sound: On</button>
+          <div class="game-menu-wrap">
+            <button class="button" id="menu-button" type="button" aria-expanded="false" aria-controls="game-menu">Menu</button>
+            <div class="game-menu" id="game-menu" role="group" aria-label="Game menu" hidden>
+              <button class="button" id="menu-pause-button" type="button" disabled>Pause game</button>
+              <button class="button" id="menu-sound-button" type="button">Sound: On</button>
+              <button class="button" id="menu-restart-button" type="button">Restart game</button>
+              <button class="button" id="menu-exit-button" type="button">Exit game</button>
+            </div>
+          </div>
         </div>
         <div class="main-music-controls" aria-label="Music controls">
           <label class="button ghost custom-file">Choose your music<input id="custom-music-file" type="file" accept="audio/*"></label>
@@ -291,7 +317,8 @@
         { name: "Pro", start: 17, max: 24, wrap: false, obstacles: 16, note: "Maximum challenge · high speed · more obstacles" }
       ];
       const bodyStyles = ["Glossy Orb", "Dragon Scale", "Liquid Chrome", "Crystal", "Neon Pulse"];
-      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, sound: false, music: true, mode: 1, player: "Guest", highscores: {} };
+      const LEVEL_POINTS_PER_LEVEL = 50;
+      const defaults = { theme: 0, skin: 0, face: 0, bodyStyle: 0, rgb: false, sound: false, music: true, mode: 1, player: "Guest", level: 1, levelProgress: 0, highscores: {} };
       let saved;
       try { saved = { ...defaults, ...JSON.parse(localStorage.getItem(SAVE_KEY) || "{}") }; }
       catch { saved = { ...defaults }; }
@@ -300,6 +327,12 @@
       saved.face = wrapIndex(saved.face, faces.length);
       saved.bodyStyle = wrapIndex(saved.bodyStyle, bodyStyles.length);
       saved.mode = wrapIndex(saved.mode, modes.length);
+      saved.level = Math.max(1, Number.isFinite(Number(saved.level)) ? Math.floor(Number(saved.level)) : 1);
+      const storedLevelProgress = Number(saved.levelProgress);
+      const savedLevelGoal = LEVEL_POINTS_PER_LEVEL + (saved.level - 1) * 10;
+      saved.levelProgress = Number.isFinite(storedLevelProgress)
+        ? Math.max(0, Math.min(savedLevelGoal - 10, Math.floor(storedLevelProgress / 10) * 10))
+        : 0;
       if (!saved.highscores || typeof saved.highscores !== "object") saved.highscores = {};
 
       const canvas = document.getElementById("game");
@@ -417,6 +450,10 @@
       const overlayActions = document.getElementById("overlay-actions");
       const scoreNode = document.getElementById("score");
       const bestNode = document.getElementById("best");
+      const levelNode = document.getElementById("level");
+      const levelProgressLabel = document.getElementById("level-progress-label");
+      const levelProgressNode = document.getElementById("level-progress");
+      const levelProgressFill = document.getElementById("level-progress-fill");
       const playerInput = document.getElementById("player-input");
       const playerDisplay = document.getElementById("player-display");
       const modeSelect = document.getElementById("mode-select");
@@ -434,6 +471,13 @@
       const saveNote = document.getElementById("save-note");
       const pauseButton = document.getElementById("pause-button");
       const soundButton = document.getElementById("sound-button");
+      const menuButton = document.getElementById("menu-button");
+      const gameMenu = document.getElementById("game-menu");
+      const menuPauseButton = document.getElementById("menu-pause-button");
+      const menuSoundButton = document.getElementById("menu-sound-button");
+      const menuWrap = document.querySelector(".game-menu-wrap");
+      const menuRestartButton = document.getElementById("menu-restart-button");
+      const menuExitButton = document.getElementById("menu-exit-button");
       const customMusicAudio = new Audio();
       customMusicAudio.loop = true;
       customMusicAudio.volume = 0.42;
@@ -470,6 +514,8 @@
       const POWER_FRUIT_GROWTH = 5;
       let obstacles = new Set();
       let score = 0;
+      let level = saved.level;
+      let levelProgress = saved.levelProgress;
       let speed = modes[saved.mode].start;
       let moveAccumulator = 0;
       let lastTime = 0;
@@ -617,10 +663,21 @@
         return playerInput.value.trim().slice(0, 24) || "Guest";
       }
 
+      function levelGoal() {
+        return LEVEL_POINTS_PER_LEVEL + (level - 1) * 10;
+      }
+
       function updateHud() {
+        const goal = levelGoal();
         const best = Number(saved.highscores[playerName()] || 0);
         scoreNode.textContent = String(score).padStart(3, "0");
         bestNode.textContent = String(best).padStart(3, "0");
+        levelNode.textContent = String(level);
+        levelProgressLabel.textContent = `LEVEL ${level} · ${levelProgress} / ${goal}`;
+        levelProgressFill.style.width = `${(levelProgress / goal) * 100}%`;
+        levelProgressNode.setAttribute("aria-valuemax", String(goal));
+        levelProgressNode.setAttribute("aria-valuenow", String(levelProgress));
+        levelProgressNode.setAttribute("aria-valuetext", `${levelProgress} of ${goal} points`);
         playerDisplay.textContent = `PLAYER: ${playerName().toUpperCase()}`;
         modeNote.textContent = modes[Number(modeSelect.value)].note;
         syncSoundButton();
@@ -761,6 +818,8 @@
         pauseButton.textContent = paused ? "Resume game" : "Pause game";
         pauseButton.disabled = !canPause;
         pauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
+        menuPauseButton.textContent = paused ? "Resume game" : "Pause game";
+        menuPauseButton.disabled = !canPause;
         const touchPauseButton = document.querySelector('.touch-button[data-direction="pause"]');
         if (touchPauseButton) {
           touchPauseButton.textContent = paused ? "▶" : "Ⅱ";
@@ -773,6 +832,8 @@
         soundButton.textContent = enabled ? "Sound: On" : "Sound: Off";
         soundButton.setAttribute("aria-pressed", String(enabled));
         soundButton.setAttribute("aria-label", enabled ? "Turn sound off" : "Turn sound on");
+        menuSoundButton.textContent = enabled ? "Sound: On" : "Sound: Off";
+        menuSoundButton.setAttribute("aria-pressed", String(enabled));
       }
 
       function toggleSound() {
@@ -791,6 +852,27 @@
         else return;
         playSound(state === "paused" ? 320 : 520, 0.1);
         setOverlay(state);
+      }
+
+      function closeGameMenu() {
+        gameMenu.hidden = true;
+        menuButton.setAttribute("aria-expanded", "false");
+      }
+
+      function toggleGameMenu() {
+        if (gameMenu.hidden && state === "playing") togglePause();
+        gameMenu.hidden = !gameMenu.hidden;
+        menuButton.setAttribute("aria-expanded", String(!gameMenu.hidden));
+      }
+
+      function exitGame() {
+        closeGameMenu();
+        const name = playerName();
+        if (score > Number(saved.highscores[name] || 0)) {
+          saved.highscores[name] = score;
+          persist();
+        }
+        resetGame("ready");
       }
 
       function finishGame() {
@@ -831,9 +913,17 @@
           if (eating) {
             playSound(620, 0.1);
             score += 10;
+            levelProgress += 10;
+            while (levelProgress >= levelGoal()) {
+              levelProgress -= levelGoal();
+              level += 1;
+              playSound(1046, 0.24, "triangle");
+            }
+            saved.level = level;
+            saved.levelProgress = levelProgress;
             speed = Math.min(mode.max, mode.start + Math.floor(score / 70));
             placeFood();
-            updateHud();
+            persist();
             if (!food) finishGame();
           }
           if (eatingPowerFruit) {
@@ -1664,6 +1754,20 @@
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
       pauseButton.addEventListener("click", togglePause);
       soundButton.addEventListener("click", toggleSound);
+      menuButton.addEventListener("click", toggleGameMenu);
+      menuPauseButton.addEventListener("click", () => {
+        closeGameMenu();
+        togglePause();
+      });
+      menuSoundButton.addEventListener("click", toggleSound);
+      menuRestartButton.addEventListener("click", () => {
+        closeGameMenu();
+        resetGame("playing");
+      });
+      menuExitButton.addEventListener("click", exitGame);
+      document.addEventListener("pointerdown", event => {
+        if (!menuWrap.contains(event.target)) closeGameMenu();
+      });
       [modeSelect, themeSelect, skinSelect, bodyStyleSelect, faceSelect, rgbToggle, soundToggle, musicToggle].forEach(control => {
         control.addEventListener("change", () => {
           if (control === modeSelect && state !== "ready") resetGame("ready");
@@ -1712,7 +1816,8 @@
           if (state === "playing" || state === "paused") togglePause();
           else if (state === "ready" || state === "over") startGame();
         } else if (key === "escape") {
-          if (state === "playing") togglePause();
+          if (!gameMenu.hidden) closeGameMenu();
+          else if (state === "playing") togglePause();
           else if (state === "paused") backToReady();
         }
       });
