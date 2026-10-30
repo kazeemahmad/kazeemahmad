@@ -95,7 +95,6 @@
     .touch-button[data-direction="left"] { grid-column: 1; grid-row: 2; }
     .touch-button[data-direction="down"] { grid-column: 2; grid-row: 2; }
     .touch-button[data-direction="right"] { grid-column: 3; grid-row: 2; }
-    .touch-button[data-direction="pause"] { grid-column: 2; grid-row: 3; }
 
     .panel { overflow: hidden; border: 1px solid #3c5156; border-radius: 9px; background: #17262bdb; box-shadow: 0 16px 40px #0002; }
     .panel-section { padding: 18px; border-bottom: 1px solid #34474b; }
@@ -200,8 +199,6 @@
           </div>
         </div>
         <div class="main-game-actions" aria-label="Game actions">
-          <button class="button" id="pause-button" type="button" disabled>Pause game</button>
-          <button class="button" id="sound-button" type="button" aria-pressed="true">Sound: On</button>
           <div class="game-menu-wrap">
             <button class="button" id="menu-button" type="button" aria-expanded="false" aria-controls="game-menu">Menu</button>
             <div class="game-menu" id="game-menu" role="group" aria-label="Game menu" hidden>
@@ -238,7 +235,6 @@
             <button class="touch-button" type="button" data-direction="left" aria-label="Move left">←</button>
             <button class="touch-button" type="button" data-direction="down" aria-label="Move down">↓</button>
             <button class="touch-button" type="button" data-direction="right" aria-label="Move right">→</button>
-            <button class="touch-button" type="button" data-direction="pause" aria-label="Pause game">||</button>
           </div>
         </div>
       </section>
@@ -469,8 +465,6 @@
       const clearCustomMusicButton = document.getElementById("clear-custom-music");
       const modeNote = document.getElementById("mode-note");
       const saveNote = document.getElementById("save-note");
-      const pauseButton = document.getElementById("pause-button");
-      const soundButton = document.getElementById("sound-button");
       const menuButton = document.getElementById("menu-button");
       const gameMenu = document.getElementById("game-menu");
       const menuPauseButton = document.getElementById("menu-pause-button");
@@ -814,24 +808,14 @@
 
       function syncPauseControl() {
         const paused = state === "paused";
-        const canPause = paused || state === "playing";
-        pauseButton.textContent = paused ? "Resume game" : "Pause game";
-        pauseButton.disabled = !canPause;
-        pauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
-        menuPauseButton.textContent = paused ? "Resume game" : "Pause game";
-        menuPauseButton.disabled = !canPause;
-        const touchPauseButton = document.querySelector('.touch-button[data-direction="pause"]');
-        if (touchPauseButton) {
-          touchPauseButton.textContent = paused ? "▶" : "Ⅱ";
-          touchPauseButton.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
-        }
+        const label = paused ? "Resume game" : state === "playing" ? "Pause game" : "Start game";
+        menuPauseButton.textContent = label;
+        menuPauseButton.disabled = false;
+        menuPauseButton.setAttribute("aria-label", label);
       }
 
       function syncSoundButton() {
         const enabled = soundToggle.checked || musicToggle.checked;
-        soundButton.textContent = enabled ? "Sound: On" : "Sound: Off";
-        soundButton.setAttribute("aria-pressed", String(enabled));
-        soundButton.setAttribute("aria-label", enabled ? "Turn sound off" : "Turn sound on");
         menuSoundButton.textContent = enabled ? "Sound: On" : "Sound: Off";
         menuSoundButton.setAttribute("aria-pressed", String(enabled));
       }
@@ -1692,11 +1676,6 @@
           button.addEventListener("pointerdown", event => {
             event.preventDefault();
             const dir = button.dataset.direction;
-            if (dir === "pause") {
-              if (state === "playing" || state === "paused") togglePause();
-              else if (state === "ready" || state === "over") startGame();
-              return;
-            }
             const mapping = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
             handleDirectionInput(mapping[dir]);
           });
@@ -1752,12 +1731,11 @@
 
       document.getElementById("start-button").addEventListener("click", startGame);
       document.getElementById("restart-button").addEventListener("click", () => resetGame("playing"));
-      pauseButton.addEventListener("click", togglePause);
-      soundButton.addEventListener("click", toggleSound);
       menuButton.addEventListener("click", toggleGameMenu);
       menuPauseButton.addEventListener("click", () => {
         closeGameMenu();
-        togglePause();
+        if (state === "ready" || state === "over") startGame();
+        else togglePause();
       });
       menuSoundButton.addEventListener("click", toggleSound);
       menuRestartButton.addEventListener("click", () => {
