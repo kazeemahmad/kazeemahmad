@@ -789,6 +789,11 @@
           title = "Paused";
           copy = `Score ${score} · ${modes[Number(modeSelect.value)].name} mode`;
           actions = [["Resume", "primary", () => { state = "playing"; setOverlay(state); }], ["Restart", "ghost", () => resetGame("playing")]];
+        } else if (nextState === "levelComplete") {
+          eyebrow = `LEVEL ${level - 1} COMPLETE`;
+          title = "Level complete!";
+          copy = `You scored ${score}. Start level ${level}, or begin a new game from level 1.`;
+          actions = [[`Start level ${level}`, "primary", () => resetGame("playing", true)], ["New game", "ghost", startNewGame]];
         } else {
           eyebrow = "RUN COMPLETE";
           title = "Game over";
@@ -814,9 +819,20 @@
         else { state = "playing"; setOverlay(state); }
       }
 
+      function startNewGame() {
+        const name = playerName();
+        if (score > Number(saved.highscores[name] || 0)) saved.highscores[name] = score;
+        level = 1;
+        levelProgress = 0;
+        saved.level = level;
+        saved.levelProgress = levelProgress;
+        resetGame("playing");
+        persist();
+      }
+
       function syncPauseControl() {
         const paused = state === "paused";
-        const label = paused ? "Resume game" : state === "playing" ? "Pause game" : "Start game";
+        const label = paused ? "Resume game" : state === "playing" ? "Pause game" : state === "levelComplete" ? `Start level ${level}` : "Start game";
         menuPauseButton.textContent = label;
         menuPauseButton.disabled = false;
         menuPauseButton.setAttribute("aria-label", label);
@@ -919,9 +935,9 @@
             placeFood();
             persist();
             if (!food) finishGame();
-            if (completedLevel) {
-              saveNote.textContent = `Level complete. Starting level ${level} with a harder board.`;
-              resetGame("playing", true);
+            else if (completedLevel) {
+              state = "levelComplete";
+              setOverlay(state);
             }
           }
           if (eatingPowerFruit) {
@@ -1749,6 +1765,7 @@
       menuPauseButton.addEventListener("click", () => {
         closeGameMenu();
         if (state === "ready" || state === "over") startGame();
+        else if (state === "levelComplete") resetGame("playing", true);
         else togglePause();
       });
       menuSoundButton.addEventListener("click", toggleSound);
