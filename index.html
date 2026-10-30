@@ -44,8 +44,8 @@
     .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #d3f36b88; border-radius: 12px; color: var(--lime); background: #d3f36b12; }
     .brand-mark svg { width: 25px; height: 25px; }
     .brand h1 { margin: 0; font-size: 19px; line-height: 1.1; letter-spacing: 0; font-weight: 700; }
-    .brand p { margin: 4px 0 0; color: var(--muted); font: 11px "DM Mono", monospace; letter-spacing: 0; text-transform: uppercase; }
-    .local-tag { display: flex; align-items: center; gap: 8px; color: #b7c8bd; font: 11px "DM Mono", monospace; text-transform: uppercase; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font: 11px "DM Mono", monospace; letter-spacing: 0; }
+    .local-tag { display: flex; align-items: center; gap: 8px; color: #b7c8bd; font: 11px "DM Mono", monospace; }
     .local-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 12px #d3f36b99; }
 
     .layout { display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: 22px; align-items: start; }
@@ -146,7 +146,7 @@
     }
     @media (max-width: 560px) {
       .shell { padding: 18px 12px 24px; }
-      .topbar { margin-bottom: 13px; }
+      .topbar { flex-wrap: wrap; margin-bottom: 13px; }
       .brand h1 { font-size: 16px; }
       .brand-mark { width: 36px; height: 36px; }
       .local-tag { font-size: 9px; }
@@ -177,9 +177,9 @@
         <div class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none"><path d="M5 7h8a3 3 0 1 1-3 3v4a3 3 0 1 0 3 3h6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="5" cy="7" r="1.7" fill="currentColor"/><circle cx="19" cy="17" r="1.7" fill="currentColor"/></svg>
         </div>
-        <div><h1>ULTIMATE SNAKE</h1><p>Offline arcade edition</p></div>
+        <div><h1>Welcome to Ultimate Snake Game!</h1><p>Eat, Grow, Survive &amp; Beat Your High Score!</p></div>
       </div>
-      <div class="local-tag">Local play · no account needed</div>
+      <div class="local-tag">Ready to Play?</div>
     </header>
 
     <div class="layout">
