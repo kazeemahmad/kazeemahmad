@@ -661,6 +661,13 @@
         return LEVEL_POINTS_PER_LEVEL + (level - 1) * 10;
       }
 
+      function updateSpeed() {
+        const mode = modes[Number(modeSelect.value)];
+        const levelRamp = Math.floor((level - 1) / 3);
+        const speedCap = Math.min(30, mode.max + Math.floor((level - 1) / 2));
+        speed = Math.min(speedCap, mode.start + Math.floor(score / 70) + levelRamp);
+      }
+
       function updateHud() {
         const goal = levelGoal();
         const best = Number(saved.highscores[playerName()] || 0);
@@ -688,7 +695,8 @@
       function cellKey(cell) { return `${cell[0]},${cell[1]}`; }
 
       function generateObstacles() {
-        const count = modes[Number(modeSelect.value)].obstacles;
+        const baseObstacles = modes[Number(modeSelect.value)].obstacles;
+        const count = Math.min(60, baseObstacles + Math.floor((level - 1) / 2) * 2);
         const safe = new Set(body.map(cellKey));
         const midX = Math.floor(GRID_W / 2);
         const midY = Math.floor(GRID_H / 2);
@@ -737,14 +745,14 @@
         powerFruitSignature = "";
       }
 
-      function resetGame(nextState = "playing") {
+      function resetGame(nextState = "playing", preserveScore = false) {
         const x = Math.floor(GRID_W / 2);
         const y = Math.floor(GRID_H / 2);
         body = Array.from({ length: 5 }, (_, i) => [x - i, y]);
         direction = [1, 0];
         queuedDirection = [1, 0];
-        score = 0;
-        speed = modes[Number(modeSelect.value)].start;
+        if (!preserveScore) score = 0;
+        updateSpeed();
         powerFruit = null;
         powerFruitLifetime = 0;
         powerFruitCooldown = 12;
@@ -898,17 +906,23 @@
             playSound(620, 0.1);
             score += 10;
             levelProgress += 10;
+            let completedLevel = false;
             while (levelProgress >= levelGoal()) {
               levelProgress -= levelGoal();
               level += 1;
+              completedLevel = true;
               playSound(1046, 0.24, "triangle");
             }
             saved.level = level;
             saved.levelProgress = levelProgress;
-            speed = Math.min(mode.max, mode.start + Math.floor(score / 70));
+            updateSpeed();
             placeFood();
             persist();
             if (!food) finishGame();
+            if (completedLevel) {
+              saveNote.textContent = `Level complete. Starting level ${level} with a harder board.`;
+              resetGame("playing", true);
+            }
           }
           if (eatingPowerFruit) {
             playSound(920, 0.2, "triangle");
