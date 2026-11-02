@@ -1,5 +1,9 @@
 ## Hi there 👋
 
+### Game apps
+
+Build a Windows installer with `npm run build:windows` or an Android APK with `npm run build:android`. GitHub Actions can publish both apps when a version tag is pushed. There is no game download or install option in the game menu.
+
 <!--
 **kazeemahmad/kazeemahmad** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
